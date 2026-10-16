@@ -1,6 +1,9 @@
 package dev.sumanth.spd.utils
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
@@ -34,6 +37,7 @@ data class FileMeta(val url: String, val name: String, val extention: String)
 
 object DownloadManager {
     private const val BUFFER_SIZE = 64 * 1024
+    private const val TAG = "DownloadManager"
 
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -93,6 +97,7 @@ object DownloadManager {
         createSubfolder: Boolean = true,
         playlistName: String? = null,
         isVideo: Boolean = false,
+        normalizeCover: Boolean = false,
         onStage: (DownloadStatus) -> Unit = {}
     ) {
         // Unique temp names: parallel tasks (or same-title tracks) never share files
@@ -103,7 +108,15 @@ object DownloadManager {
         try {
             val thumbFile: File? = coroutineScope {
                 val thumbJob = if (imageUrl != null && !isVideo) {
-                    async(Dispatchers.IO) { downloadThumbnail(imageUrl, thumbTarget) }
+                    async(Dispatchers.IO) {
+                        val raw = downloadThumbnail(imageUrl, thumbTarget)
+                        if (raw == null) {
+                            Log.w(TAG, "Cover download failed for $fileName")
+                            null
+                        } else if (normalizeCover) {
+                            normalizeCoverImage(raw, File(context.cacheDir, "spd_$uid.cover.jpg"))
+                        } else raw
+                    }
                 } else null
 
                 val request = okhttp3.Request.Builder()
@@ -193,23 +206,59 @@ object DownloadManager {
     private fun tagFile(file: File, ext: String, trackName: String, artist: String, thumbFile: File? = null): File {
         val tempFile = File(file.parent, "${file.nameWithoutExtension}.tmp.$ext")
 
-        val args = mutableListOf("-i", file.absolutePath)
-        if (thumbFile != null) {
-            args += listOf("-i", thumbFile.absolutePath, "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:0", "attached_pic")
-        } else {
-            args += listOf("-codec", "copy")
+        var ok = runTagging(file, tempFile, ext, trackName, artist, thumbFile)
+        if (!ok && thumbFile != null) {
+            // Cover can't be muxed into this container: still write title/artist instead of losing everything
+            Log.w(TAG, "Embedding cover failed for $trackName, retrying without cover")
+            ok = runTagging(file, tempFile, ext, trackName, artist, null)
         }
-        args += listOf("-metadata", "title=$trackName", "-metadata", "artist=$artist", "-y", tempFile.absolutePath)
 
-        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
-        val session = FFmpegKit.executeWithArguments(args.toTypedArray())
-
-        return if (ReturnCode.isSuccess(session.returnCode) && tempFile.exists() && tempFile.length() > 0L) {
+        return if (ok) {
             file.delete()
             tempFile
         } else {
             tempFile.delete()
             file
+        }
+    }
+
+    private fun runTagging(input: File, output: File, ext: String, trackName: String, artist: String, thumbFile: File?): Boolean {
+        val args = mutableListOf("-i", input.absolutePath)
+        if (thumbFile != null) {
+            args += listOf("-i", thumbFile.absolutePath, "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:0", "attached_pic")
+        } else {
+            args += listOf("-codec", "copy")
+        }
+        args += listOf("-metadata", "title=$trackName", "-metadata", "artist=$artist", "-y", output.absolutePath)
+
+        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
+        val session = FFmpegKit.executeWithArguments(args.toTypedArray())
+        return ReturnCode.isSuccess(session.returnCode) && output.exists() && output.length() > 0L
+    }
+
+    /**
+     * YouTube covers can be WebP and 16:9. Decode with Android (handles jpeg/png/webp), crop the center
+     * square and save as JPEG - the same kind of image the Spotify flow already embeds successfully.
+     * If anything fails, the original downloaded image is used.
+     */
+    private fun normalizeCoverImage(source: File, target: File): File {
+        var bitmap: Bitmap? = null
+        return try {
+            bitmap = BitmapFactory.decodeFile(source.absolutePath)
+            if (bitmap == null) {
+                Log.w(TAG, "Cover could not be decoded, using original image")
+                return source
+            }
+            val size = minOf(bitmap.width, bitmap.height)
+            val square = Bitmap.createBitmap(bitmap, (bitmap.width - size) / 2, (bitmap.height - size) / 2, size, size)
+            target.outputStream().use { square.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+            if (square !== bitmap) square.recycle()
+            if (target.exists() && target.length() > 0L) target else source
+        } catch (e: Exception) {
+            Log.w(TAG, "Cover normalization failed: ${e.message}")
+            source
+        } finally {
+            bitmap?.recycle()
         }
     }
 
@@ -220,6 +269,7 @@ object DownloadManager {
         var ok = runMp3Conversion(file, output, trackName, artist, thumbFile)
         if (!ok && thumbFile != null) {
             // Cover art can break the mux: retry once without cover so the track is still converted
+            Log.w(TAG, "MP3 with cover failed for $trackName, retrying without cover")
             ok = runMp3Conversion(file, output, trackName, artist, null)
         }
         if (!ok) {

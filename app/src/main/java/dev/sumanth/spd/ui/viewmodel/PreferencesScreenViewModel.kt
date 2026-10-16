@@ -21,11 +21,17 @@ class PreferencesScreenViewModel(application: Application) : AndroidViewModel(ap
     var createSubfolder by mutableStateOf(sharedPref.getCreateSubfolder())
     var concurrentDownloads by mutableIntStateOf(sharedPref.getConcurrentDownloads())
 
+    val developerName = "Guizx-098"
     private val githubUrl = "https://github.com/Guizx-098/spd-turbo"
+    private val profileUrl = "https://github.com/Guizx-098"
     val packageInfo = application.packageManager.getPackageInfo(application.packageName, 0)
 
     fun openGitHub(uriHandler: UriHandler) {
         uriHandler.openUri(githubUrl)
+    }
+
+    fun openProfile(uriHandler: UriHandler) {
+        uriHandler.openUri(profileUrl)
     }
 
     fun handleFolderSelection(uri: Uri?) {

@@ -3,6 +3,7 @@ package dev.sumanth.spd.utils
 import dev.sumanth.spd.model.DownloadStatus
 import dev.sumanth.spd.model.Track
 import org.schabi.newpipe.extractor.ServiceList.YouTube
+import org.schabi.newpipe.extractor.Image
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
@@ -39,7 +40,7 @@ object YoutubeScraper {
             title = extractor.name,
             artist = cleanArtist(extractor.uploaderName),
             status = DownloadStatus.IDLE,
-            imageUrl = extractor.thumbnails.lastOrNull()?.url,
+            imageUrl = bestThumbnail(extractor.thumbnails, url),
             sourceUrl = url,
             isVideo = isVideo
         )
@@ -71,10 +72,23 @@ object YoutubeScraper {
         title = item.name,
         artist = cleanArtist(item.uploaderName),
         status = DownloadStatus.IDLE,
-        imageUrl = item.thumbnails.lastOrNull()?.url,
+        imageUrl = bestThumbnail(item.thumbnails, item.url),
         sourceUrl = item.url,
         isVideo = isVideo
     )
+
+    /** Largest thumbnail, preferring JPEG over WebP; falls back to the standard YouTube thumbnail. */
+    private fun bestThumbnail(images: List<Image>, videoUrl: String): String? {
+        val usable = images.filter { it.url.isNotBlank() }
+        val jpegs = usable.filter { !it.url.contains(".webp") && !it.url.contains("vi_webp") }
+        val best = (jpegs.ifEmpty { usable })
+            .withIndex()
+            .maxWithOrNull(compareBy({ maxOf(it.value.height, 0) }, { it.index }))
+            ?.value?.url
+        if (best != null) return best.replace("/vi_webp/", "/vi/").replace(".webp", ".jpg")
+        val id = Regex("(?:v=|youtu\\.be/)([\\w-]{11})").find(videoUrl)?.groupValues?.get(1)
+        return id?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" }
+    }
 
     private fun cleanArtist(name: String?): String = (name ?: "").removeSuffix(" - Topic")
 }

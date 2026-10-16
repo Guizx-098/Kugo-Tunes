@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.Info
@@ -55,7 +57,7 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
 
 
     Column(
-        modifier = Modifier.padding(16.dp).fillMaxSize(),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("General Settings", style = MaterialTheme.typography.titleMedium)
@@ -164,10 +166,26 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.clickable { viewModel.openProfile(uriHandler) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(Icons.Default.Info, contentDescription = "Developer", modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Based on the work of Sumanth", style = MaterialTheme.typography.bodyLarge)
+                    Text("Developed by ", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = viewModel.developerName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.Launch,
+                        contentDescription = "Open Profile",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
                 Row(
                     modifier = Modifier.clickable { viewModel.openGitHub(uriHandler) },
@@ -187,6 +205,11 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                         modifier = Modifier.size(16.dp)
                     )
                 }
+                Text(
+                    text = "Based on Spotify Playlist Downloader by Sumanth (MIT)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Text(
                     text = "Version " + viewModel.packageInfo.versionName,
                     style = MaterialTheme.typography.bodySmall,

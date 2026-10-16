@@ -15,8 +15,8 @@ android {
         applicationId = "dev.sumanth.spd"
         minSdk = 24
         targetSdk = 36
-        versionCode = 34
-        versionName = "2.0.0"
+        versionCode = 35
+        versionName = "2.0.1"
     }
 
     buildTypes {

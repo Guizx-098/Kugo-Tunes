@@ -145,7 +145,8 @@ class DownloadService : Service() {
                 track.imageUrl,
                 createSubfolder,
                 playlistName,
-                wantVideo
+                wantVideo,
+                track.sourceUrl != null
             ) { stage -> setStatus(index, stage) }
             setStatus(index, DownloadStatus.COMPLETE)
         } catch (e: Throwable) {
