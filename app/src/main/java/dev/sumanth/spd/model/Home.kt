@@ -11,6 +11,8 @@ enum class AppStatus {
 enum class DownloadStatus {
     IDLE,
     DOWNLOADING,
+    PROCESSING,
+    CONVERTING,
     FAILED,
     COMPLETE
 }
@@ -20,5 +22,7 @@ data class Track(
     val artist: String,
     val status: DownloadStatus,
     val imageUrl: String? = null,
-    val isSelected: Boolean = true
+    val isSelected: Boolean = true,
+    val sourceUrl: String? = null,
+    val isVideo: Boolean = false
 )

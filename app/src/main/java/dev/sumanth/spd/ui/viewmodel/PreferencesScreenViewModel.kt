@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.UriHandler
@@ -18,9 +19,9 @@ class PreferencesScreenViewModel(application: Application) : AndroidViewModel(ap
     var downloadPath by mutableStateOf(sharedPref.getDownloadPath() ?: "No folder selected")
     var autoUpdateCheck by mutableStateOf(sharedPref.getAutoUpdateCheck())
     var createSubfolder by mutableStateOf(sharedPref.getCreateSubfolder())
-    var parallelDownloads by mutableStateOf(sharedPref.getParallelDownloads())
+    var concurrentDownloads by mutableIntStateOf(sharedPref.getConcurrentDownloads())
 
-    private val githubUrl = "https://github.com/supersu-man/spotify-playlist-downloader"
+    private val githubUrl = "https://github.com/Guizx-098/spd-turbo"
     val packageInfo = application.packageManager.getPackageInfo(application.packageName, 0)
 
     fun openGitHub(uriHandler: UriHandler) {

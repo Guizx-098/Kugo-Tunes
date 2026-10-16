@@ -13,7 +13,9 @@ import dev.sumanth.spd.model.AppStatus
 import dev.sumanth.spd.service.DownloadService
 import dev.sumanth.spd.service.DownloadState
 import dev.sumanth.spd.utils.SharedPref
+import dev.sumanth.spd.model.Track
 import dev.sumanth.spd.utils.SpotifyScraper
+import dev.sumanth.spd.utils.YoutubeScraper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,8 +43,9 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     val tracks get() = DownloadState.tracks
 
     fun startScraping() {
-        if (spotifyLink.isBlank()) return Toast.makeText(getApplication(), "Spotify link is invalid.", Toast.LENGTH_SHORT).show()
-        if(spotifyLink.contains("?")) spotifyLink = spotifyLink.split("?")[0]
+        if (spotifyLink.isBlank()) return Toast.makeText(getApplication(), "Link is invalid.", Toast.LENGTH_SHORT).show()
+        val isYoutube = YoutubeScraper.isYoutubeLink(spotifyLink)
+        if (!isYoutube && spotifyLink.contains("?")) spotifyLink = spotifyLink.split("?")[0]
         
         appStatus = AppStatus.SCRAPING
         tracks.clear()
@@ -50,19 +53,30 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         
         scrapingJob = viewModelScope.launch {
             try {
-                val scrapeResult = withContext(Dispatchers.IO) {
-                    spotifyScraper.scrapePlaylist(spotifyLink) { fetchedTracks, total ->
-                        withContext(Dispatchers.Main) {
-                            totalTracksToScrape = total
-                            tracks.clear()
-                            tracks.addAll(fetchedTracks)
-                        }
+                val onProgress: suspend (List<Track>, Int) -> Unit = { fetchedTracks, total ->
+                    withContext(Dispatchers.Main) {
+                        totalTracksToScrape = total
+                        tracks.clear()
+                        tracks.addAll(fetchedTracks)
                     }
                 }
-                totalTracksToScrape = scrapeResult.totalTracks
-                tracks.clear()
-                tracks.addAll(scrapeResult.tracks)
-                DownloadState.playlistName = scrapeResult.metadata.name
+                if (isYoutube) {
+                    val youtubeResult = withContext(Dispatchers.IO) {
+                        YoutubeScraper.scrape(spotifyLink, onProgress)
+                    }
+                    totalTracksToScrape = youtubeResult.tracks.size
+                    tracks.clear()
+                    tracks.addAll(youtubeResult.tracks)
+                    DownloadState.playlistName = youtubeResult.name
+                } else {
+                    val scrapeResult = withContext(Dispatchers.IO) {
+                        spotifyScraper.scrapePlaylist(spotifyLink, onProgress)
+                    }
+                    totalTracksToScrape = scrapeResult.totalTracks
+                    tracks.clear()
+                    tracks.addAll(scrapeResult.tracks)
+                    DownloadState.playlistName = scrapeResult.metadata.name
+                }
                 appStatus = AppStatus.SCRAPING_COMPLETE
             } catch (e: Exception) {
                 if (e is CancellationException) return@launch
@@ -95,6 +109,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
             putExtra(DownloadService.EXTRA_CONVERT_TO_MP3, convertToMp3)
             putExtra(DownloadService.EXTRA_CREATE_SUBFOLDER, createSubfolder)
             putExtra(DownloadService.EXTRA_PLAYLIST_NAME, playlistName)
+            putExtra(DownloadService.EXTRA_CONCURRENT_DOWNLOADS, sharedPref.getConcurrentDownloads())
         }
         
         getApplication<Application>().startService(intent)

@@ -1,28 +1,46 @@
-name: Build APK
+name: Build
 on:
   push:
     branches:
       - 'main'
-  workflow_dispatch:
-
+permissions:
+  contents: write
 jobs:
   Build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+
+      - uses: kaisugi/action-regex-match@v1.0.2
+        id: regex-match
+        with:
+          text: ${{ github.event.head_commit.message }}
+          regex: '^v[0-9]+\.[0-9]+\.[0-9]+$'
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
 
-      - name: Build debug APK
+      - name: Build APK
         run: bash ./gradlew assembleDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Rename APK
+        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/SPD-Turbo.apk
+
+      - uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: SPD-Turbo
+          path: app/build/outputs/SPD-Turbo.apk
+
+      - name: Create Release
+        if: ${{ steps.regex-match.outputs.match != '' }}
+        uses: ncipollo/release-action@v1.13.0
+        with:
+          artifacts: "app/build/outputs/SPD-Turbo.apk"
+          tag: ${{ github.event.head_commit.message }}
+          name: SPD Turbo ${{ github.event.head_commit.message }}
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}

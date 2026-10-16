@@ -37,7 +37,7 @@ fun Idle(viewModel: HomeScreenViewModel) {
                 OutlinedTextField(
                     value = viewModel.spotifyLink,
                     onValueChange = { viewModel.spotifyLink = it },
-                    label = { Text("Spotify Playlist Link") },
+                    label = { Text("Spotify / YouTube Link") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
                 )

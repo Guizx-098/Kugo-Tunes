@@ -57,13 +57,13 @@ class SharedPref(context: Context) {
         }
     }
 
-    fun getParallelDownloads(): Int {
-        return sharedPref.getInt(KEY_PARALLEL_DOWNLOADS, 3).coerceIn(1, 4)
+    fun getConcurrentDownloads(): Int {
+        return sharedPref.getInt(KEY_CONCURRENT_DOWNLOADS, 1).coerceIn(1, 4)
     }
 
-    fun storeParallelDownloads(value: Int) {
+    fun storeConcurrentDownloads(count: Int) {
         sharedPref.edit {
-            putInt(KEY_PARALLEL_DOWNLOADS, value.coerceIn(1, 4))
+            putInt(KEY_CONCURRENT_DOWNLOADS, count.coerceIn(1, 4))
         }
     }
 
@@ -72,6 +72,6 @@ class SharedPref(context: Context) {
         private const val KEY_DOWNLOAD_PATH = "download_path"
         private const val KEY_AUTO_UPDATE_CHECK = "auto_update_check"
         private const val KEY_CREATE_SUBFOLDER = "create_subfolder"
-        private const val KEY_PARALLEL_DOWNLOADS = "parallel_downloads"
+        private const val KEY_CONCURRENT_DOWNLOADS = "concurrent_downloads"
     }
 }

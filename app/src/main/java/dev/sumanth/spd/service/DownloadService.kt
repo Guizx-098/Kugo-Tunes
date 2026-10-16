@@ -13,13 +13,12 @@ import dev.sumanth.spd.MainActivity
 import dev.sumanth.spd.model.AppStatus
 import dev.sumanth.spd.model.DownloadStatus
 import dev.sumanth.spd.utils.DownloadManager
-import dev.sumanth.spd.utils.SharedPref
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicInteger
@@ -33,6 +32,7 @@ class DownloadService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private var downloadJob: Job? = null
+    private val statusLock = Any()
 
     companion object {
         private const val CHANNEL_ID = "download_channel"
@@ -43,6 +43,7 @@ class DownloadService : Service() {
         const val EXTRA_CONVERT_TO_MP3 = "EXTRA_CONVERT_TO_MP3"
         const val EXTRA_CREATE_SUBFOLDER = "EXTRA_CREATE_SUBFOLDER"
         const val EXTRA_PLAYLIST_NAME = "EXTRA_PLAYLIST_NAME"
+        const val EXTRA_CONCURRENT_DOWNLOADS = "EXTRA_CONCURRENT_DOWNLOADS"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -65,6 +66,7 @@ class DownloadService : Service() {
                 val convert = intent.getBooleanExtra(EXTRA_CONVERT_TO_MP3, false)
                 val createSubfolder = intent.getBooleanExtra(EXTRA_CREATE_SUBFOLDER, true)
                 val playlistName = intent.getStringExtra(EXTRA_PLAYLIST_NAME)
+                val concurrency = intent.getIntExtra(EXTRA_CONCURRENT_DOWNLOADS, 1)
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     startForeground(NOTIFICATION_ID, createNotification("Preparing download..."), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -72,7 +74,7 @@ class DownloadService : Service() {
                     startForeground(NOTIFICATION_ID, createNotification("Preparing download..."))
                 }
                 
-                startDownloads(path, convert, createSubfolder, playlistName)
+                startDownloads(path, convert, createSubfolder, playlistName, concurrency)
             }
             ACTION_STOP -> {
                 stopDownloads()
@@ -81,50 +83,35 @@ class DownloadService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startDownloads(downloadPath: String, convertToMp3: Boolean, createSubfolder: Boolean, playlistName: String?) {
+    private fun startDownloads(downloadPath: String, convertToMp3: Boolean, createSubfolder: Boolean, playlistName: String?, concurrency: Int) {
         downloadJob?.cancel()
         downloadJob = serviceScope.launch {
             DownloadState.appStatus = AppStatus.DOWNLOADING
-            val parallel = SharedPref(this@DownloadService).getParallelDownloads()
-            val partsPerFile = (12 / parallel).coerceIn(1, 4)
-            val gate = Semaphore(parallel)
-            val done = AtomicInteger(0)
-            val pending = DownloadState.tracks.withIndex()
-                .filter { it.value.isSelected && it.value.status != DownloadStatus.COMPLETE }
-            val total = pending.size
+            val indices = DownloadState.tracks.indices.filter {
+                val track = DownloadState.tracks[it]
+                track.isSelected && track.status != DownloadStatus.COMPLETE
+            }
+            // Retried (previously failed) tracks go back to "waiting" until their turn
+            indices.forEach { setStatus(it, DownloadStatus.IDLE) }
 
-            pending.map { (i, track) ->
-                async {
-                    gate.withPermit {
-                        ensureActive()
-                        DownloadState.currentTrackIndex = i
-                        DownloadState.tracks[i] = track.copy(status = DownloadStatus.DOWNLOADING)
+            val totalToDownload = indices.size
+            val startedCount = AtomicInteger(0)
+            val semaphore = Semaphore(concurrency.coerceIn(1, 4))
 
-                        try {
-                            val fileMeta = DownloadManager.getFileMeta(track.title, track.artist)
-                            DownloadManager.downloadFile(
-                                this@DownloadService,
-                                fileMeta.url,
-                                downloadPath,
-                                DownloadManager.sanitizeFilename(track.title),
-                                fileMeta.extention,
-                                convertToMp3,
-                                track.artist,
-                                track.imageUrl,
-                                createSubfolder,
-                                playlistName,
-                                partsPerFile
-                            )
-                            DownloadState.tracks[i] = track.copy(status = DownloadStatus.COMPLETE)
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            e.printStackTrace()
-                            DownloadState.tracks[i] = track.copy(status = DownloadStatus.FAILED)
+            // Each track is its own independent task; the semaphore only limits how many run at once
+            coroutineScope {
+                for (i in indices) {
+                    launch {
+                        semaphore.withPermit {
+                            ensureActive()
+                            val started = startedCount.incrementAndGet()
+                            DownloadState.currentTrackIndex = i
+                            updateNotification(started, totalToDownload, DownloadState.tracks[i].title)
+                            processTrack(i, downloadPath, convertToMp3, createSubfolder, playlistName)
                         }
-                        updateNotification(done.incrementAndGet(), total, track.title)
                     }
                 }
-            }.awaitAll()
+            }
 
             DownloadState.appStatus = AppStatus.DOWNLOADING_COMPLETE
             DownloadState.currentTrackIndex = -1
@@ -133,9 +120,63 @@ class DownloadService : Service() {
         }
     }
 
+    /**
+     * download -> (convert | tag) -> copy -> COMPLETE. COMPLETE is only set after downloadFile returned,
+     * i.e. after every step (including the MP3 conversion) finished. A failure only affects this track.
+     */
+    private suspend fun processTrack(index: Int, downloadPath: String, convertToMp3: Boolean, createSubfolder: Boolean, playlistName: String?) {
+        val track = DownloadState.tracks[index]
+        setStatus(index, DownloadStatus.DOWNLOADING)
+        try {
+            val wantVideo = track.isVideo && !convertToMp3
+            val fileMeta = if (track.sourceUrl != null) {
+                DownloadManager.getFileMetaFromUrl(track.sourceUrl, wantVideo)
+            } else {
+                DownloadManager.getFileMeta(track.title, track.artist)
+            }
+            DownloadManager.downloadFile(
+                this@DownloadService,
+                fileMeta.url,
+                downloadPath,
+                DownloadManager.sanitizeFilename(track.title),
+                fileMeta.extention,
+                convertToMp3,
+                track.artist,
+                track.imageUrl,
+                createSubfolder,
+                playlistName,
+                wantVideo
+            ) { stage -> setStatus(index, stage) }
+            setStatus(index, DownloadStatus.COMPLETE)
+        } catch (e: Throwable) {
+            // Cancelled by the user -> propagate; any other failure stays isolated in this track
+            currentCoroutineContext().ensureActive()
+            if (e is CancellationException) throw e
+            e.printStackTrace()
+            setStatus(index, DownloadStatus.FAILED)
+        }
+    }
+
+    private fun setStatus(index: Int, status: DownloadStatus) {
+        synchronized(statusLock) {
+            if (index in DownloadState.tracks.indices) {
+                DownloadState.tracks[index] = DownloadState.tracks[index].copy(status = status)
+            }
+        }
+    }
+
     private fun stopDownloads() {
         downloadJob?.cancel()
         FFmpegKit.cancel()
+        // Tracks that were in flight go back to "waiting" instead of a spinner that never ends
+        synchronized(statusLock) {
+            for (i in DownloadState.tracks.indices) {
+                val status = DownloadState.tracks[i].status
+                if (status == DownloadStatus.DOWNLOADING || status == DownloadStatus.PROCESSING || status == DownloadStatus.CONVERTING) {
+                    DownloadState.tracks[i] = DownloadState.tracks[i].copy(status = DownloadStatus.IDLE)
+                }
+            }
+        }
         DownloadState.appStatus = AppStatus.SCRAPING_COMPLETE
         stopForeground(true)
         stopSelf()

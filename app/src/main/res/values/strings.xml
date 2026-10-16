@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">Spotify Playlist Downloader</string>
-    <string name="update_url">https://github.com/supersu-man/spotify-playlist-downloader/releases/latest</string>
+    <string name="app_name">SPD Turbo</string>
+    <string name="update_url">https://github.com/Guizx-098/spd-turbo/releases/latest</string>
 </resources>

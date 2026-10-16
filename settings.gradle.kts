@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Spotify Playlist Downloader"
+rootProject.name = "SPD Turbo"
 include(":app")

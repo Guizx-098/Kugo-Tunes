@@ -19,12 +19,10 @@ import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -112,30 +110,28 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column {
-                    Text("Simultaneous downloads", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        text = "Tracks downloaded at the same time. Applies to the next download.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                val options = listOf(1, 2, 3, 4)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    options.forEachIndexed { index, value ->
-                        SegmentedButton(
-                            selected = viewModel.parallelDownloads == value,
+                Text("Simultaneous downloads", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = "How many tracks are downloaded at the same time",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    (1..4).forEach { count ->
+                        FilterChip(
+                            selected = viewModel.concurrentDownloads == count,
                             onClick = {
-                                viewModel.parallelDownloads = value
-                                viewModel.sharedPref.storeParallelDownloads(value)
+                                viewModel.concurrentDownloads = count
+                                viewModel.sharedPref.storeConcurrentDownloads(count)
                             },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                            label = { Text(value.toString()) }
+                            label = { Text(count.toString()) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -171,7 +167,7 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Info, contentDescription = "Developer", modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Developed by Sumanth", style = MaterialTheme.typography.bodyLarge)
+                    Text("Based on the work of Sumanth", style = MaterialTheme.typography.bodyLarge)
                 }
                 Row(
                     modifier = Modifier.clickable { viewModel.openGitHub(uriHandler) },

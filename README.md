@@ -2,12 +2,12 @@
   <img src="githubdocs/logo.png" alt="Logo">
 </p>
 
-<h1 align="center">Spotify Playlist Downloader</h1>
+<h1 align="center">SPD Turbo</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/supersu-man/spotify-playlist-downloader?style=for-the-badge&color=1DB954" alt="Release">
-  <img src="https://img.shields.io/github/license/supersu-man/spotify-playlist-downloader?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/github/stars/supersu-man/spotify-playlist-downloader?style=for-the-badge" alt="Stars">
+  <img src="https://img.shields.io/github/v/release/Guizx-098/spd-turbo?style=for-the-badge&color=1DB954" alt="Release">
+  <img src="https://img.shields.io/github/license/Guizx-098/spd-turbo?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/github/stars/Guizx-098/spd-turbo?style=for-the-badge" alt="Stars">
 </p>
 
 <p align="center">
@@ -18,6 +18,9 @@
 ---
 
 ## ✨ Features
+
+- ⚡ **Simultaneous downloads (1–4)**: set in Preferences (default 1). Every track runs its own download → convert → finish pipeline.
+- ▶️ **YouTube / YouTube Music links**: paste a song, video or playlist link (music.youtube.com = audio, youtube.com = video; with *Convert to MP3* on, audio only).
 
 - 🎵 **Direct Spotify Scraping**: Scrapes playlist metadata directly without requiring Spotify API keys or user account login.
 - 📲 **Seamless Spotify Integration**: Supports receiving Spotify playlist links shared directly from the Spotify app via Android's share menu.
@@ -44,7 +47,7 @@
 
 ## 📥 Installation
 
-1. Go to the [**Releases**](https://github.com/supersu-man/spotify-playlist-downloader/releases) page.
+1. Go to the [**Releases**](https://github.com/Guizx-098/spd-turbo/releases) page.
 2. Download the latest `.apk` release file.
 3. Install the APK on your Android device (ensure "Install from Unknown Sources" is enabled in your device settings).
 4. Open the app, set your preferred download location in **Preferences**, and start downloading!
@@ -64,9 +67,13 @@
 
 ---
 
+> SPD Turbo is a modified version of [spotify-playlist-downloader](https://github.com/supersu-man/spotify-playlist-downloader) by Sumanth (MIT).
+
+---
+
 ## 🤝 Contributing
 
-If you have ideas for new features, improvements, or run into any bugs, please **[create an issue](https://github.com/supersu-man/spotify-playlist-downloader/issues)** on GitHub to suggest more features or report problems.
+If you have ideas for new features, improvements, or run into any bugs, please **[create an issue](https://github.com/Guizx-098/spd-turbo/issues)** on GitHub to suggest more features or report problems.
 
 ---
 

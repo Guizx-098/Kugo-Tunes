@@ -287,7 +287,7 @@ fun StatusIcon(status: DownloadStatus) {
             contentDescription = "Idle",
             tint = MaterialTheme.colorScheme.outline
         )
-        DownloadStatus.DOWNLOADING -> CircularProgressIndicator(
+        DownloadStatus.DOWNLOADING, DownloadStatus.PROCESSING, DownloadStatus.CONVERTING -> CircularProgressIndicator(
             modifier = Modifier.size(24.dp),
             strokeWidth = 2.dp
         )

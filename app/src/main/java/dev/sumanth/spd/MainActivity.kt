@@ -117,7 +117,8 @@ class MainActivity : ComponentActivity() {
                 val regex = Regex("https?://[\\w\\d./?=&%-]+")
                 val match = regex.find(sharedText)
                 match?.value?.let { url ->
-                    if (url.contains("open.spotify.com") || url.contains("spotify.link")) {
+                    if (url.contains("open.spotify.com") || url.contains("spotify.link") ||
+                        url.contains("youtube.com") || url.contains("youtu.be")) {
                         homeScreenViewModel.spotifyLink = url
                         homeScreenViewModel.startScraping()
                     }
