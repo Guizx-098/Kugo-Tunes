@@ -13,6 +13,7 @@ import dev.sumanth.spd.MainActivity
 import dev.sumanth.spd.model.AppStatus
 import dev.sumanth.spd.model.DownloadStatus
 import dev.sumanth.spd.utils.DownloadManager
+import dev.sumanth.spd.utils.SharedPref
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -42,7 +43,6 @@ class DownloadService : Service() {
         const val EXTRA_CONVERT_TO_MP3 = "EXTRA_CONVERT_TO_MP3"
         const val EXTRA_CREATE_SUBFOLDER = "EXTRA_CREATE_SUBFOLDER"
         const val EXTRA_PLAYLIST_NAME = "EXTRA_PLAYLIST_NAME"
-        private const val MAX_PARALLEL_DOWNLOADS = 3
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -85,7 +85,9 @@ class DownloadService : Service() {
         downloadJob?.cancel()
         downloadJob = serviceScope.launch {
             DownloadState.appStatus = AppStatus.DOWNLOADING
-            val gate = Semaphore(MAX_PARALLEL_DOWNLOADS)
+            val parallel = SharedPref(this@DownloadService).getParallelDownloads()
+            val partsPerFile = (12 / parallel).coerceIn(1, 4)
+            val gate = Semaphore(parallel)
             val done = AtomicInteger(0)
             val pending = DownloadState.tracks.withIndex()
                 .filter { it.value.isSelected && it.value.status != DownloadStatus.COMPLETE }
@@ -110,7 +112,8 @@ class DownloadService : Service() {
                                 track.artist,
                                 track.imageUrl,
                                 createSubfolder,
-                                playlistName
+                                playlistName,
+                                partsPerFile
                             )
                             DownloadState.tracks[i] = track.copy(status = DownloadStatus.COMPLETE)
                         } catch (e: Exception) {

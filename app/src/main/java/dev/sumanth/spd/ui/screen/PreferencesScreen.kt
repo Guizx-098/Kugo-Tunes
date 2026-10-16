@@ -20,7 +20,11 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +43,7 @@ import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
 import dev.sumanth.spd.ui.viewmodel.PreferencesScreenViewModel
 import dev.sumanth.spd.utils.SharedPref
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
 
@@ -102,6 +107,38 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                         viewModel.sharedPref.storeCreateSubfolder(it)
                     }
                 )
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column {
+                    Text("Simultaneous downloads", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "Tracks downloaded at the same time. Applies to the next download.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                val options = listOf(1, 2, 3, 4)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    options.forEachIndexed { index, value ->
+                        SegmentedButton(
+                            selected = viewModel.parallelDownloads == value,
+                            onClick = {
+                                viewModel.parallelDownloads = value
+                                viewModel.sharedPref.storeParallelDownloads(value)
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                            label = { Text(value.toString()) }
+                        )
+                    }
+                }
             }
         }
 
