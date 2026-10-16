@@ -1,0 +1,305 @@
+package dev.sumanth.spd.ui.component
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TriStateCheckbox
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import dev.sumanth.spd.model.AppStatus
+import dev.sumanth.spd.model.DownloadStatus
+import dev.sumanth.spd.model.Track
+import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
+
+@Composable
+fun Queue(viewModel: HomeScreenViewModel) {
+    val listState = rememberLazyListState()
+    val isScraping = viewModel.appStatus == AppStatus.SCRAPING
+    val isDownloading = viewModel.appStatus == AppStatus.DOWNLOADING
+    val isDownloadComplete = viewModel.appStatus == AppStatus.DOWNLOADING_COMPLETE
+    val isScrapingComplete = viewModel.appStatus == AppStatus.SCRAPING_COMPLETE
+    val failedCount = viewModel.getFailedDownloadsCount()
+    val selectedCount = viewModel.getSelectedTracksCount()
+
+    LaunchedEffect(viewModel.currentTrack) {
+        if (viewModel.currentTrack >= 0) {
+            listState.animateScrollToItem(viewModel.currentTrack)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val title = if (isScraping) {
+                    if (viewModel.totalTracksToScrape > 0) "Scraping (${viewModel.tracks.size}/${viewModel.totalTracksToScrape})"
+                    else "Scraping..."
+                } else {
+                    "Queue (${viewModel.tracks.size})"
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                
+                if (!isScraping) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Downloaded: ${viewModel.getDownloadedCount()}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Failed: ${viewModel.getFailedDownloadsCount()}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (isScraping) {
+                Spacer(modifier = Modifier.height(8.dp))
+                if (viewModel.totalTracksToScrape > 0) {
+                    LinearProgressIndicator(
+                        progress = { viewModel.tracks.size.toFloat() / viewModel.totalTracksToScrape },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (!isScraping && viewModel.tracks.isNotEmpty()) {
+                val allSelected = viewModel.tracks.all { it.isSelected }
+                val totalCount = viewModel.tracks.size
+                val toggleState = when {
+                    allSelected -> ToggleableState.On
+                    viewModel.tracks.none { it.isSelected } -> ToggleableState.Off
+                    else -> ToggleableState.Indeterminate
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isDownloading) {
+                            viewModel.selectAllTracks(toggleState != ToggleableState.On)
+                        }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TriStateCheckbox(
+                        state = toggleState,
+                        onClick = {
+                            viewModel.selectAllTracks(toggleState != ToggleableState.On)
+                        },
+                        enabled = !isDownloading
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Select All ($selectedCount/$totalCount)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(bottom = 4.dp), thickness = 0.5.dp)
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                itemsIndexed(viewModel.tracks) { index, track ->
+                    TrackItem(
+                        index = index + 1,
+                        track = track,
+                        onSelectionChange = {
+                            viewModel.toggleTrackSelection(index)
+                        },
+                        enabled = !isDownloading
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isScrapingComplete) {
+                    OutlinedButton(
+                        onClick = { viewModel.reset() },
+                        modifier = Modifier.height(56.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        when {
+                            isScraping -> viewModel.cancelScraping()
+                            isDownloading -> viewModel.cancelDownload()
+                            isDownloadComplete && failedCount > 0 -> viewModel.downloadPlaylist()
+                            isDownloadComplete -> viewModel.reset()
+                            else -> viewModel.downloadPlaylist()
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    enabled = (isScraping || (viewModel.tracks.isNotEmpty() && selectedCount > 0)),
+                    colors = if (isDownloading || isScraping) {
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    } else {
+                        ButtonDefaults.buttonColors()
+                    }
+                ) {
+                    val icon = when {
+                        isScraping || isDownloading -> Icons.Default.Close
+                        else -> Icons.Default.Download
+                    }
+                    val text = when {
+                        isScraping -> "Cancel Scraping"
+                        isDownloading -> "Cancel Download"
+                        isDownloadComplete && failedCount > 0 -> "Retry Failed ($failedCount)"
+                        isDownloadComplete -> "Download Another"
+                        selectedCount == viewModel.tracks.size -> "Download All"
+                        else -> "Download Selected ($selectedCount)"
+                    }
+                    Icon(icon, contentDescription = null)
+                    Text(text, modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TrackItem(
+    index: Int,
+    track: Track,
+    onSelectionChange: (Boolean) -> Unit,
+    enabled: Boolean = true
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) {
+                onSelectionChange(!track.isSelected)
+            }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Checkbox(
+            checked = track.isSelected,
+            onCheckedChange = { onSelectionChange(it) },
+            enabled = enabled
+        )
+
+        Text(
+            text = "$index.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(28.dp)
+        )
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = track.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = track.artist,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        StatusIcon(status = track.status)
+    }
+}
+
+@Composable
+fun StatusIcon(status: DownloadStatus) {
+    when (status) {
+        DownloadStatus.IDLE -> Icon(
+            imageVector = Icons.Default.Schedule,
+            contentDescription = "Idle",
+            tint = MaterialTheme.colorScheme.outline
+        )
+        DownloadStatus.DOWNLOADING -> CircularProgressIndicator(
+            modifier = Modifier.size(24.dp),
+            strokeWidth = 2.dp
+        )
+        DownloadStatus.FAILED -> Icon(
+            imageVector = Icons.Default.Error,
+            contentDescription = "Failed",
+            tint = MaterialTheme.colorScheme.error
+        )
+        DownloadStatus.COMPLETE -> Icon(
+            imageVector = Icons.Default.CheckCircle,
+            contentDescription = "Complete",
+            tint = MaterialTheme.colorScheme.primary
+        )
+    }
+}

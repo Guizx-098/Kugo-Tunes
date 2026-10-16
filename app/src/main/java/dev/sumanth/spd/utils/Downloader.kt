@@ -1,0 +1,278 @@
+package dev.sumanth.spd.utils
+
+import android.content.Context
+import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFmpegKitConfig
+import com.arthenica.ffmpegkit.Level
+import com.arthenica.ffmpegkit.ReturnCode
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.schabi.newpipe.extractor.ServiceList.YouTube
+import org.schabi.newpipe.extractor.downloader.Downloader
+import org.schabi.newpipe.extractor.downloader.Request
+import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeMusicSearchExtractor
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import androidx.core.net.toUri
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+data class FileMeta(val url: String, val name: String, val extention: String)
+
+object DownloadManager {
+    private const val BUFFER_SIZE = 128 * 1024
+    private val safLock = Mutex()
+    val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    fun getFileMeta(title: String, artist: String): FileMeta {
+        val extra = YouTube.getSearchExtractor(
+            title + " " + artist,
+            listOf(YoutubeSearchQueryHandlerFactory.MUSIC_SONGS),
+            null
+        ) as YoutubeMusicSearchExtractor
+        extra.fetchPage()
+
+        val mediaLink = extra.initialPage.items.firstOrNull()?.url
+            ?: throw IOException("No search results found for $title")
+
+        val extractor = YouTube.getStreamExtractor(mediaLink)
+        extractor.fetchPage()
+
+        val bestStream = extractor.audioStreams
+            .filter { it.format?.suffix == "m4a" }
+            .maxByOrNull { it.bitrate }
+            ?: throw IOException("No audio streams found for $title")
+
+        return FileMeta(url = bestStream.content, name = extractor.name, extention = "m4a")
+    }
+
+    suspend fun downloadFile(
+        context: Context,
+        url: String,
+        folderUriString: String,
+        fileName: String,
+        extension: String,
+        convertToMp3: Boolean,
+        artist: String,
+        imageUrl: String? = null,
+        createSubfolder: Boolean = true,
+        playlistName: String? = null
+    ) {
+        val request = okhttp3.Request.Builder()
+            .url(url)
+            .addHeader("Range", "bytes=0-")
+            .build()
+
+        val uniqueId = System.nanoTime()
+        val tempFile = File(context.cacheDir, "$uniqueId.$extension")
+        
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+
+            val body = response.body ?: throw IOException("Empty response body")
+            
+            body.byteStream().use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        if (!currentCoroutineContext().isActive) {
+                            throw CancellationException("Download cancelled")
+                        }
+                        output.write(buffer, 0, bytesRead)
+                    }
+                }
+            }
+        }
+
+        val thumbFile = imageUrl?.let { downloadThumbnail(it) }
+
+        val processedFile = if (convertToMp3) {
+            convertToMp3(tempFile, fileName, artist, thumbFile)
+        } else {
+            tagFile(tempFile, extension, fileName, artist, thumbFile)
+        }
+
+        // Copy to SAF
+        val folderUri = folderUriString.toUri()
+        val newFile = safLock.withLock {
+        var pickedDir = DocumentFile.fromTreeUri(context, folderUri)
+            ?: throw IOException("Failed to get document from tree URI")
+
+        if (createSubfolder && !playlistName.isNullOrBlank()) {
+            val sanitizedPlaylistName = sanitizeFilename(playlistName)
+            var subDir = pickedDir.findFile(sanitizedPlaylistName)
+            if (subDir == null || !subDir.isDirectory) {
+                subDir = pickedDir.createDirectory(sanitizedPlaylistName)
+            }
+            if (subDir != null) {
+                pickedDir = subDir
+            }
+        }
+
+        val finalExtension = if (convertToMp3) "mp3" else extension
+        val created = pickedDir.createFile("audio/*", "$fileName.$finalExtension")
+            ?: pickedDir.findFile("$fileName.$finalExtension")
+            ?: throw IOException("Failed to create file in selected folder")
+        created
+        }
+
+        context.contentResolver.openOutputStream(newFile.uri)?.use { output ->
+            processedFile.inputStream().use { input ->
+                input.copyTo(output, BUFFER_SIZE)
+            }
+        }
+        
+        processedFile.delete()
+        if (processedFile != tempFile) tempFile.delete()
+        thumbFile?.delete()
+    }
+
+    fun sanitizeFilename(name: String): String {
+        return name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+    }
+
+    private fun tagFile(file: File, ext: String, trackName: String, artist: String, thumbFile: File? = null): File {
+        val inputPath = file.absolutePath
+        val tempFile = File(file.parent, "${file.nameWithoutExtension}.tmp.$ext")
+        val tempPath = tempFile.absolutePath
+
+        val command = StringBuilder("-i \"$inputPath\" ")
+        if (thumbFile != null) {
+            command.append("-i \"${thumbFile.absolutePath}\" ")
+            command.append("-map 0 -map 1 -c copy -disposition:v:0 attached_pic ")
+        } else {
+            command.append("-codec copy ")
+        }
+        command.append("-metadata title=\"$trackName\" ")
+        command.append("-metadata artist=\"$artist\" ")
+        command.append("-y \"$tempPath\"")
+
+        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
+        val session = FFmpegKit.execute(command.toString())
+
+        return if (ReturnCode.isSuccess(session.returnCode)) {
+            file.delete()
+            tempFile
+        } else {
+            file
+        }
+    }
+
+    private fun convertToMp3(file: File, trackName: String, artist: String, thumbFile: File? = null): File {
+        val inputPath = file.absolutePath
+        val outputPath = File(file.parent, "${file.nameWithoutExtension}.mp3").absolutePath
+
+        val command = StringBuilder("-i \"$inputPath\" ")
+        if (thumbFile != null) {
+            command.append("-i \"${thumbFile.absolutePath}\" ")
+            command.append("-map 0:a -map 1:0 -c:a libmp3lame -ab 192k -ar 44100 -id3v2_version 3 -metadata:s:v title=\"Album cover\" -metadata:s:v comment=\"Cover (Front)\" ")
+        } else {
+            command.append("-map 0:a -c:a libmp3lame -ab 192k -ar 44100 ")
+        }
+        command.append("-metadata title=\"$trackName\" ")
+        command.append("-metadata artist=\"$artist\" ")
+        command.append("-y \"$outputPath\"")
+
+        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
+        val session = FFmpegKit.execute(command.toString())
+
+        return if (ReturnCode.isSuccess(session.returnCode)) {
+            file.delete()
+            File(outputPath)
+        } else {
+            file
+        }
+    }
+
+    private fun downloadThumbnail(url: String): File? {
+        return try {
+            val request = okhttp3.Request.Builder().url(url).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val tempFile = File.createTempFile("thumb", ".jpg")
+                response.body.byteStream().use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                tempFile
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+class NewPipeDownloader private constructor() : Downloader() {
+    
+    @Throws(IOException::class, ReCaptchaException::class)
+    override fun execute(request: Request): Response {
+        val httpMethod = request.httpMethod()
+        val url = request.url()
+        val headers = request.headers()
+        val dataToSend = request.dataToSend()
+        
+        var requestBody = dataToSend?.toRequestBody()
+
+        if (requestBody == null && (httpMethod == "POST" || httpMethod == "PUT" || httpMethod == "PATCH")) {
+            requestBody = "".toRequestBody()
+        }
+
+        val requestBuilder = okhttp3.Request.Builder()
+            .method(httpMethod, requestBody)
+            .url(url)
+            .addHeader("User-Agent", USER_AGENT)
+
+        headers.forEach { (name, values) ->
+            values.forEach { value ->
+                requestBuilder.addHeader(name, value)
+            }
+        }
+
+        val response = DownloadManager.client.newCall(requestBuilder.build()).execute()
+        
+        if (response.code == 429) {
+            response.close()
+            throw ReCaptchaException("reCaptcha Challenge requested", url)
+        }
+
+        val bodyString = response.body?.string() ?: ""
+        val latestUrl = response.request.url.toString()
+        
+        return Response(
+            response.code,
+            response.message,
+            response.headers.toMultimap(),
+            bodyString,
+            latestUrl
+        )
+    }
+
+    companion object {
+        const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        private var instance: NewPipeDownloader? = null
+
+        fun getInstance(): NewPipeDownloader {
+            if (instance == null) {
+                instance = NewPipeDownloader()
+            }
+            return instance!!
+        }
+    }
+}

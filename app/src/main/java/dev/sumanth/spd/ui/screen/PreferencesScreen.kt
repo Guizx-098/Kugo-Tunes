@@ -1,0 +1,165 @@
+package dev.sumanth.spd.ui.screen
+
+import android.content.Intent
+import android.os.Environment
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Launch
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Launch
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
+import dev.sumanth.spd.ui.viewmodel.PreferencesScreenViewModel
+import dev.sumanth.spd.utils.SharedPref
+
+@Composable
+fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
+
+    val uriHandler = LocalUriHandler.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        viewModel.handleFolderSelection(uri)
+    }
+
+
+    Column(
+        modifier = Modifier.padding(16.dp).fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("General Settings", style = MaterialTheme.typography.titleMedium)
+
+        Card(
+            onClick = { launcher.launch(null) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text("Download Location", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = viewModel.getDisplayPath(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "Tap to change folder",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Create subfolder per playlist", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "Download tracks into a dedicated folder",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.createSubfolder,
+                    onCheckedChange = {
+                        viewModel.createSubfolder = it
+                        viewModel.sharedPref.storeCreateSubfolder(it)
+                    }
+                )
+            }
+        }
+
+        Text("Updates", style = MaterialTheme.typography.titleMedium)
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Auto-check for updates", style = MaterialTheme.typography.bodyLarge)
+                Switch(
+                    checked = viewModel.autoUpdateCheck,
+                    onCheckedChange = {
+                        viewModel.autoUpdateCheck = it
+                        viewModel.sharedPref.storeAutoUpdateCheck(it)
+                    }
+                )
+            }
+        }
+
+        Text("About", style = MaterialTheme.typography.titleMedium)
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Info, contentDescription = "Developer", modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Developed by Sumanth", style = MaterialTheme.typography.bodyLarge)
+                }
+                Row(
+                    modifier = Modifier.clickable { viewModel.openGitHub(uriHandler) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Source Code on GitHub",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.Launch,
+                        contentDescription = "Open Link",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Text(
+                    text = "Version " + viewModel.packageInfo.versionName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
