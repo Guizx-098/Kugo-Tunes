@@ -72,7 +72,9 @@
 
 1. Update `versionCode` / `versionName` in `app/build.gradle.kts` and the notes in `RELEASE_NOTES.md`.
 2. Push to `main` with the commit message exactly `vX.Y.Z` (e.g. `v2.2.0`).
-3. GitHub Actions builds the signed APK and publishes the Release with `Kugo-Tunes.apk`. The in-app updater reads that Release.
+3. Run `bash publicar.sh` from the project folder. The script checks that the tag does not already exist, then pushes a commit named exactly `vX.Y.Z`. GitHub Actions builds the signed APK and publishes the Release with `Kugo-Tunes.apk`. The in-app updater reads that Release.
+
+For this project version, use `versionCode = 41`, `versionName = "2.4.0"`, and commit message `v2.4.0`. Never reuse a release tag; GitHub returns HTTP 422 (`already_exists`) when a Release tag already exists.
 
 ---
 

@@ -1,8 +1,10 @@
-## Kugo Tunes 2.3.1
+## Kugo Tunes 2.4.0
 
 **Download:** `Kugo-Tunes.apk` (below, under *Assets*). Open it on your Android phone to install or update.
 
-### What's new
+### What's new in 2.4.0
+- Version update to 2.4.0 (Android versionCode 41).
+- Added an optional Cobalt-compatible social extraction API setting; it requires a compatible API instance and is not a guarantee that every platform link will work.
 - Facebook: share links (/share/p/, /share/v/ ...) are followed to the video they point to; clearer errors (post without video, private/login, blocked, network)
 - Instagram Reels: links with extra parameters (?dlrf=...) are normalized; more ways to read the public Reel page; clearer errors
 - TikTok: short links retried with a second browser profile; the error now says whether access was blocked or the page format changed
@@ -16,7 +18,9 @@
 
 > Releases keep the same signing key, so this installs over the previous version.
 
-### Novidades (pt-BR)
+### Novidades da versão 2.4.0 (pt-BR)
+- Versão atualizada para 2.4.0 (Android versionCode 41).
+- Adicionada configuração opcional de API compatível com Cobalt para extração social; requer uma instância compatível e não garante que todos os links funcionem.
 - Facebook: links de compartilhamento (/share/p/, /share/v/ ...) são seguidos até o vídeo; erros mais claros (publicação sem vídeo, privado/login, bloqueio, rede)
 - Reels do Instagram: links com parâmetros extras (?dlrf=...) são normalizados; mais formas de ler a página pública do Reel; erros mais claros
 - TikTok: links curtos são tentados com um segundo perfil de navegador; o erro agora diz se o acesso foi bloqueado ou se o formato da página mudou
