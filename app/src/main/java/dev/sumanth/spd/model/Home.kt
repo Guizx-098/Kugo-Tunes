@@ -41,4 +41,4 @@ enum class Platform { SPOTIFY, YOUTUBE, TIKTOK, KWAI, INSTAGRAM, FACEBOOK }
 
 enum class ContentType { VIDEO, MUSIC }
 
-enum class AudioFormat { MP3, M4A }
+enum class AudioFormat { MP3, M4A, MP4 }

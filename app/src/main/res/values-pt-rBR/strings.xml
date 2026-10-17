@@ -1,7 +1,7 @@
 <resources>
     <string name="nav_home">Início</string>
     <string name="nav_preferences">Preferências</string>
-    <string name="link_label">Link do Spotify / YouTube</string>
+    <string name="link_label">Link da playlist do Spotify</string>
     <string name="playlist_details">Detalhes da playlist</string>
     <string name="convert_to_mp3">Converter para MP3</string>
     <string name="scrape_playlist">Carregar playlist</string>

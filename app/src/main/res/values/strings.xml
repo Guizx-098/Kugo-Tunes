@@ -3,7 +3,7 @@
     <string name="update_url" translatable="false">https://github.com/Guizx-098/spd-turbo/releases/latest</string>
     <string name="nav_home">Home</string>
     <string name="nav_preferences">Preferences</string>
-    <string name="link_label">Spotify / YouTube Link</string>
+    <string name="link_label">Spotify playlist link</string>
     <string name="playlist_details">Playlist Details</string>
     <string name="convert_to_mp3">Convert to MP3</string>
     <string name="scrape_playlist">Scrape Playlist</string>

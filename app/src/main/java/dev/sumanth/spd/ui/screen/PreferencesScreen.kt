@@ -28,7 +28,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,8 +62,6 @@ fun PreferencesScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val displayPath = remember(viewModel.downloadPath) { viewModel.getDisplayPath() }
-    var cobaltApiUrl by remember { mutableStateOf(viewModel.sharedPref.getCobaltApiUrl()) }
-    var cobaltSaved by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -98,39 +95,6 @@ fun PreferencesScreen(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text("Extrator social (Cobalt compatível)", style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    "Opcional: informe a URL HTTPS da sua própria instância Cobalt compatível. Não há uma API pública oficial garantida. Se ficar vazio, o app usa o extrator integrado.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedTextField(
-                    value = cobaltApiUrl,
-                    onValueChange = { cobaltApiUrl = it; cobaltSaved = false },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("URL base da API") },
-                    placeholder = { Text("https://seu-servidor.example") }
-                )
-                Button(onClick = {
-                    val value = cobaltApiUrl.trim().trimEnd('/')
-                    if (value.isBlank() || (value.startsWith("https://") && android.net.Uri.parse(value).host != null)) {
-                        viewModel.sharedPref.storeCobaltApiUrl(value)
-                        cobaltApiUrl = value
-                        cobaltSaved = true
-                    } else {
-                        cobaltSaved = false
-                    }
-                }) { Text("Salvar API") }
-                if (cobaltSaved) Text("Configuração salva", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
             }
         }
 
