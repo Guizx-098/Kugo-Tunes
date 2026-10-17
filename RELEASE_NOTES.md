@@ -1,19 +1,14 @@
-## Kugo Tunes 2.5.0
+# Kugo Tunes 2.5.1
 
-### English
-- Bumped Android versionCode to 42 and versionName to 2.5.0.
-- Removed the optional Cobalt-compatible API setting and all Cobalt-specific code.
-- Added the bundled yt-dlp Android runtime as the primary extractor for public TikTok, Instagram, Facebook and Kwai links, retaining the existing public-page parser as a fallback.
-- Spotify now asks only for a Spotify playlist link and uses MP3/M4A format chips instead of the legacy MP3 switch.
-- YouTube video flow now offers MP3/MP4 format selection; YouTube Music keeps MP3/M4A.
+## O que mudou desde a 2.5.0
 
-### Português (Brasil)
-- Atualizado o versionCode Android para 42 e versionName para 2.5.0.
-- Removida a configuração e todo o código específico do Cobalt.
-- Adicionado o runtime Android do yt-dlp como extrator principal para links públicos do TikTok, Instagram, Facebook e Kwai, mantendo o extrator de página pública existente como alternativa.
-- Spotify agora pede somente o link de uma playlist do Spotify e usa seletores MP3/M4A no lugar da chave antiga de conversão.
-- A etapa de vídeo do YouTube agora oferece seleção MP3/MP4; o YouTube Music mantém MP3/M4A.
+- Incrementada a versão Android para `2.5.1` (`versionCode` 43), sem reutilizar a tag de lançamento anterior.
+- Corrigido o workflow de CI: usa versões estáveis documentadas das ações de checkout e configuração do Java, e configuração dedicada do Gradle.
+- O processo de compilação grava a saída completa em `BUILD_LOG.txt` e informa o código de saída no resumo do GitHub Actions.
+- Se a compilação falhar, os logs e relatórios disponíveis são publicados como artefato do workflow para facilitar o diagnóstico; nenhum APK ou release é declarado como concluído nesse caso.
+- Quando a compilação passa e o commit tem uma mensagem exatamente no formato `vX.Y.Z`, o release inclui o APK, `BUILD_LOG.txt` e `RELEASE_BUILD_INFO.txt`, para que o usuário possa baixar e ler os logs/informações da compilação.
+- Mantidas as alterações introduzidas na 2.5.0: remoção da integração Cobalt, extrator yt-dlp integrado para links sociais públicos, ajuste do campo do Spotify e opções de formato, e padronização dos cartões da tela inicial.
 
-### Test status / Estado dos testes
-- Source and configuration edits applied.
-- Real platform downloads and Android release build must be tested in GitHub Actions and on a device before claiming success.
+## Validação
+
+O log anexado é a saída real da compilação executada pelo GitHub Actions. Um log de compilação bem-sucedida não significa que todos os links de Instagram, TikTok, Facebook ou Kwai foram testados; esses testes de integração precisam ser realizados separadamente no dispositivo.

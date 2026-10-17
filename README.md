@@ -93,3 +93,7 @@ Distributed under the **MIT License**. See [LICENSE](LICENSE).
 ### Social extraction in 2.5.0
 
 Public TikTok, Instagram, Facebook and Kwai links are first processed by the bundled yt-dlp Android runtime, with the existing public-page parser as a fallback. This does not guarantee access to every post: platform changes, login walls, removed posts and private content can still prevent extraction. No Cobalt API or external extraction server is required.
+
+### Logs de compilação e releases (2.5.1)
+
+O workflow salva a saída completa do Gradle em `BUILD_LOG.txt`. Se a compilação falhar, o arquivo e os relatórios disponíveis são enviados como artefato da execução do GitHub Actions. Se a compilação passar e o commit tiver uma mensagem exatamente no formato `vX.Y.Z`, o release inclui `BUILD_LOG.txt` e `RELEASE_BUILD_INFO.txt` junto do APK. Consulte o resumo do job para o código de saída e o estado da compilação.

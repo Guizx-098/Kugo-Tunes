@@ -1,48 +1,97 @@
-name: Build
+name: Build and Release
+
 on:
   push:
     branches:
-      - 'main'
+      - main
+
 permissions:
   contents: write
+
 jobs:
   Build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout source
+        uses: actions/checkout@v6
 
-      - uses: kaisugi/action-regex-match@v1.0.2
-        id: regex-match
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
         with:
-          text: ${{ github.event.head_commit.message }}
-          regex: '^v[0-9]+\.[0-9]+\.[0-9]+$'
-
-      - name: Setup JDK
-        uses: actions/setup-java@v6
-        with:
-          distribution: 'zulu'
+          distribution: zulu
           java-version: '17'
-          cache: 'gradle'
 
-      # Release build (not debug): much faster and smoother at runtime, signed with the fixed project key
-      - name: Build APK
-        run: bash ./gradlew assembleRelease
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
-      - name: Rename APK
-        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/Kugo-Tunes.apk
+      - name: Build release APK and save complete log
+        id: build
+        shell: bash
+        run: |
+          set +e
+          ./gradlew --no-daemon --stacktrace assembleRelease 2>&1 | tee BUILD_LOG.txt
+          result=${PIPESTATUS[0]}
+          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Kugo Tunes build report"
+            echo "- Version: 2.5.1"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Gradle exit code: $result"
+            if [ "$result" -eq 0 ]; then
+              echo "- Result: SUCCESS"
+            else
+              echo "- Result: FAILED — see the BUILD_LOG.txt artifact for the full error."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
 
-      - uses: actions/upload-artifact@v4
+      - name: Prepare APK and release log
+        if: success()
+        shell: bash
+        run: |
+          test -s app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk Kugo-Tunes-2.5.1.apk
+          cat > RELEASE_BUILD_INFO.txt <<'INFO'
+          Kugo Tunes 2.5.1 — build information
+
+          This release includes the changes listed in RELEASE_NOTES.md.
+          BUILD_LOG.txt contains the Gradle build output captured by GitHub Actions.
+          A successful build does not by itself guarantee that every platform's downloader works on every public/private post; test platform links on-device.
+          INFO
+
+      - name: Upload APK and build logs (also on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: Kugo-Tunes
-          path: app/build/outputs/Kugo-Tunes.apk
+          name: Kugo-Tunes-2.5.1-build-${{ github.run_number }}
+          path: |
+            BUILD_LOG.txt
+            Kugo-Tunes-2.5.1.apk
+            app/build/reports/**
+            app/build/outputs/**
+          if-no-files-found: warn
+          retention-days: 30
 
-      - name: Create Release
-        if: ${{ steps.regex-match.outputs.match != '' }}
+      - name: Detect release tag from commit message
+        id: release-tag
+        if: success()
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [[ "$COMMIT_MESSAGE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "tag=$COMMIT_MESSAGE" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release tag requested by commit message: $COMMIT_MESSAGE"
+          fi
+
+      - name: Create GitHub Release with APK and readable logs
+        if: success() && steps.release-tag.outputs.tag != ''
         uses: ncipollo/release-action@v1.13.0
         with:
-          artifacts: "app/build/outputs/Kugo-Tunes.apk"
-          tag: ${{ github.event.head_commit.message }}
-          name: Kugo Tunes ${{ github.event.head_commit.message }}
+          artifacts: "Kugo-Tunes-2.5.1.apk,BUILD_LOG.txt,RELEASE_BUILD_INFO.txt"
+          tag: ${{ steps.release-tag.outputs.tag }}
+          name: Kugo Tunes ${{ steps.release-tag.outputs.tag }}
           bodyFile: RELEASE_NOTES.md
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
