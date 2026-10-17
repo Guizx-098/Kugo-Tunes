@@ -1,5 +1,9 @@
 package dev.sumanth.spd.ui.component
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.stringResource
+import dev.sumanth.spd.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +39,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.state.ToggleableState
@@ -53,11 +60,13 @@ fun Queue(viewModel: HomeScreenViewModel) {
     val isDownloading = viewModel.appStatus == AppStatus.DOWNLOADING
     val isDownloadComplete = viewModel.appStatus == AppStatus.DOWNLOADING_COMPLETE
     val isScrapingComplete = viewModel.appStatus == AppStatus.SCRAPING_COMPLETE
-    val failedCount = viewModel.getFailedDownloadsCount()
-    val selectedCount = viewModel.getSelectedTracksCount()
+    val failedCount by remember { derivedStateOf { viewModel.getFailedDownloadsCount() } }
+    val downloadedCount by remember { derivedStateOf { viewModel.getDownloadedCount() } }
+    val selectedCount by remember { derivedStateOf { viewModel.getSelectedTracksCount() } }
 
     LaunchedEffect(viewModel.currentTrack) {
-        if (viewModel.currentTrack >= 0) {
+        // Do not fight the user's own scrolling
+        if (viewModel.currentTrack >= 0 && !listState.isScrollInProgress) {
             listState.animateScrollToItem(viewModel.currentTrack)
         }
     }
@@ -70,10 +79,10 @@ fun Queue(viewModel: HomeScreenViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val title = if (isScraping) {
-                    if (viewModel.totalTracksToScrape > 0) "Scraping (${viewModel.tracks.size}/${viewModel.totalTracksToScrape})"
-                    else "Scraping..."
+                    if (viewModel.totalTracksToScrape > 0) stringResource(R.string.scraping_progress, viewModel.tracks.size, viewModel.totalTracksToScrape)
+                    else stringResource(R.string.scraping)
                 } else {
-                    "Queue (${viewModel.tracks.size})"
+                    stringResource(R.string.queue_title, viewModel.tracks.size)
                 }
                 Text(
                     text = title,
@@ -84,12 +93,12 @@ fun Queue(viewModel: HomeScreenViewModel) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "Downloaded: ${viewModel.getDownloadedCount()}",
+                                text = stringResource(R.string.downloaded_count, downloadedCount),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Failed: ${viewModel.getFailedDownloadsCount()}",
+                                text = stringResource(R.string.failed_count, failedCount),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -145,7 +154,7 @@ fun Queue(viewModel: HomeScreenViewModel) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Select All ($selectedCount/$totalCount)",
+                        text = stringResource(R.string.select_all, selectedCount, totalCount),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -213,12 +222,12 @@ fun Queue(viewModel: HomeScreenViewModel) {
                         else -> Icons.Default.Download
                     }
                     val text = when {
-                        isScraping -> "Cancel Scraping"
-                        isDownloading -> "Cancel Download"
-                        isDownloadComplete && failedCount > 0 -> "Retry Failed ($failedCount)"
-                        isDownloadComplete -> "Download Another"
-                        selectedCount == viewModel.tracks.size -> "Download All"
-                        else -> "Download Selected ($selectedCount)"
+                        isScraping -> stringResource(R.string.cancel_scraping)
+                        isDownloading -> stringResource(R.string.cancel_download)
+                        isDownloadComplete && failedCount > 0 -> stringResource(R.string.retry_failed, failedCount)
+                        isDownloadComplete -> stringResource(R.string.download_another)
+                        selectedCount == viewModel.tracks.size -> stringResource(R.string.download_all)
+                        else -> stringResource(R.string.download_selected, selectedCount)
                     }
                     Icon(icon, contentDescription = null)
                     Text(text, modifier = Modifier.padding(start = 8.dp))
@@ -284,21 +293,30 @@ fun StatusIcon(status: DownloadStatus) {
     when (status) {
         DownloadStatus.IDLE -> Icon(
             imageVector = Icons.Default.Schedule,
-            contentDescription = "Idle",
+            contentDescription = stringResource(R.string.status_idle),
             tint = MaterialTheme.colorScheme.outline
         )
-        DownloadStatus.DOWNLOADING, DownloadStatus.PROCESSING, DownloadStatus.CONVERTING -> CircularProgressIndicator(
-            modifier = Modifier.size(24.dp),
-            strokeWidth = 2.dp
-        )
+        DownloadStatus.DOWNLOADING, DownloadStatus.PROCESSING, DownloadStatus.CONVERTING -> {
+            val description = stringResource(
+                when (status) {
+                    DownloadStatus.DOWNLOADING -> R.string.status_downloading
+                    DownloadStatus.PROCESSING -> R.string.status_processing
+                    else -> R.string.status_converting
+                }
+            )
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp).semantics { contentDescription = description },
+                strokeWidth = 2.dp
+            )
+        }
         DownloadStatus.FAILED -> Icon(
             imageVector = Icons.Default.Error,
-            contentDescription = "Failed",
+            contentDescription = stringResource(R.string.status_failed),
             tint = MaterialTheme.colorScheme.error
         )
         DownloadStatus.COMPLETE -> Icon(
             imageVector = Icons.Default.CheckCircle,
-            contentDescription = "Complete",
+            contentDescription = stringResource(R.string.status_complete),
             tint = MaterialTheme.colorScheme.primary
         )
     }

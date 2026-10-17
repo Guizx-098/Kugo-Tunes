@@ -1,5 +1,7 @@
 package dev.sumanth.spd.utils
 
+import dev.sumanth.spd.R
+
 import dev.sumanth.spd.model.DownloadStatus
 import dev.sumanth.spd.model.Track
 import org.schabi.newpipe.extractor.ServiceList.YouTube
@@ -18,7 +20,7 @@ object YoutubeScraper {
 
     suspend fun scrape(input: String, onProgress: suspend (List<Track>, Int) -> Unit): ScrapeResult {
         val url = Regex("https?://\\S+").find(input)?.value
-            ?: throw IllegalArgumentException("Unable to read the YouTube link.")
+            ?: throw LocalizedException(R.string.err_youtube_read, fallback = "Unable to read the YouTube link.")
         // YouTube Music (music.youtube.com) -> audio. YouTube -> video.
         val isVideo = !url.contains("music.youtube.com")
 
@@ -30,7 +32,7 @@ object YoutubeScraper {
         if (YouTube.getLinkTypeByUrl(url) == StreamingService.LinkType.STREAM) {
             return scrapeSingle(url, isVideo)
         }
-        throw IllegalArgumentException("Unsupported YouTube link. Use a video, song or playlist link.")
+        throw LocalizedException(R.string.err_youtube_unsupported, fallback = "Unsupported YouTube link. Use a video, song or playlist link.")
     }
 
     private fun scrapeSingle(url: String, isVideo: Boolean): ScrapeResult {

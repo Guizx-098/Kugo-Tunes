@@ -12,7 +12,9 @@ import androidx.core.app.NotificationCompat
 import dev.sumanth.spd.MainActivity
 import dev.sumanth.spd.model.AppStatus
 import dev.sumanth.spd.model.DownloadStatus
+import dev.sumanth.spd.R
 import dev.sumanth.spd.utils.DownloadManager
+import dev.sumanth.spd.utils.LocaleHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,9 +71,9 @@ class DownloadService : Service() {
                 val concurrency = intent.getIntExtra(EXTRA_CONCURRENT_DOWNLOADS, 1)
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    startForeground(NOTIFICATION_ID, createNotification("Preparing download..."), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                    startForeground(NOTIFICATION_ID, createNotification(LocaleHelper.string(this, R.string.notif_preparing)), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
                 } else {
-                    startForeground(NOTIFICATION_ID, createNotification("Preparing download..."))
+                    startForeground(NOTIFICATION_ID, createNotification(LocaleHelper.string(this, R.string.notif_preparing)))
                 }
                 
                 startDownloads(path, convert, createSubfolder, playlistName, concurrency)
@@ -187,7 +189,7 @@ class DownloadService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Downloads",
+                LocaleHelper.string(this, R.string.notif_channel),
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -217,7 +219,7 @@ class DownloadService : Service() {
     }
 
     private fun updateNotification(current: Int, total: Int, trackName: String) {
-        val title = "Downloading ($current/$total)"
+        val title = LocaleHelper.string(this, R.string.notif_downloading, current, total)
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, createNotification(title, trackName, current, total))
     }

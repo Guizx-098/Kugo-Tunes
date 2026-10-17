@@ -16,10 +16,11 @@ import java.io.File
 
 class PreferencesScreenViewModel(application: Application) : AndroidViewModel(application) {
     val sharedPref = SharedPref(application)
-    var downloadPath by mutableStateOf(sharedPref.getDownloadPath() ?: "No folder selected")
+    var downloadPath by mutableStateOf<String?>(sharedPref.getDownloadPath())
     var autoUpdateCheck by mutableStateOf(sharedPref.getAutoUpdateCheck())
     var createSubfolder by mutableStateOf(sharedPref.getCreateSubfolder())
     var concurrentDownloads by mutableIntStateOf(sharedPref.getConcurrentDownloads())
+    var language by mutableStateOf(sharedPref.getLanguage())
 
     val developerName = "Guizx-098"
     private val githubUrl = "https://github.com/Guizx-098/spd-turbo"
@@ -47,10 +48,10 @@ class PreferencesScreenViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
-    fun getDisplayPath(): String {
-        if (downloadPath == "No folder selected") return downloadPath
-        val uri = Uri.parse(downloadPath)
-        val path = uri.path ?: return downloadPath
+    /** Readable folder path, or null when no folder was chosen yet. */
+    fun getDisplayPath(): String? {
+        val current = downloadPath ?: return null
+        val path = Uri.parse(current).path ?: return current
         if (path.contains(":")) {
             return path.split(":").last()
         }

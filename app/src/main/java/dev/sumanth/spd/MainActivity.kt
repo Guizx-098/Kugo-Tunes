@@ -1,5 +1,8 @@
 package dev.sumanth.spd
 
+import dev.sumanth.spd.utils.LocaleHelper
+import androidx.compose.ui.res.stringResource
+import android.content.Context
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -41,8 +44,8 @@ import org.schabi.newpipe.extractor.NewPipe
 class MainActivity : ComponentActivity() {
 
     private val navigationItems = listOf(
-        NavigationItem("Home", Icons.Filled.Home, Icons.Outlined.Home),
-        NavigationItem("Preferences", Icons.Filled.Settings, Icons.Outlined.Settings)
+        NavigationItem(R.string.nav_home, Icons.Filled.Home, Icons.Outlined.Home),
+        NavigationItem(R.string.nav_preferences, Icons.Filled.Settings, Icons.Outlined.Settings)
     )
 
     private val updateViewModel: UpdaterViewModel by viewModels()
@@ -67,20 +70,19 @@ class MainActivity : ComponentActivity() {
         }
 
         val sharedPref = SharedPref(this)
-        if (sharedPref.getAutoUpdateCheck()) {
-            updateViewModel.checkForUpdate(this)
+        if (savedInstanceState == null && sharedPref.getAutoUpdateCheck()) {
+            updateViewModel.checkForUpdate(manual = false)
         }
 
         NewPipe.init(NewPipeDownloader.getInstance())
 
-        handleIntent(intent)
+        // Only for a fresh launch: re-handling the share intent on recreate (rotation/language) would reset the queue
+        if (savedInstanceState == null) handleIntent(intent)
 
         setContent {
 
             val pagerState = rememberPagerState(pageCount = { navigationItems.size })
-            val title by remember {
-                derivedStateOf { navigationItems[pagerState.currentPage].title }
-            }
+            val title = stringResource(navigationItems[pagerState.currentPage].titleRes)
 
             Background {
                 Scaffold(
@@ -95,7 +97,7 @@ class MainActivity : ComponentActivity() {
                     ) { page ->
                         when (page) {
                             0 -> HomeScreen()
-                            1 -> PreferencesScreen()
+                            1 -> PreferencesScreen(updaterViewModel = updateViewModel)
                         }
                     }
 
@@ -103,6 +105,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateViewModel.onResume()
     }
 
     override fun onNewIntent(intent: Intent) {

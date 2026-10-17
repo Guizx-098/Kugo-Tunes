@@ -1,5 +1,7 @@
 package dev.sumanth.spd.ui.component
 
+import androidx.compose.ui.res.stringResource
+import dev.sumanth.spd.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,12 +34,12 @@ fun Idle(viewModel: HomeScreenViewModel) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                Text("Playlist Details", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.playlist_details), style = MaterialTheme.typography.titleMedium)
 
                 OutlinedTextField(
                     value = viewModel.spotifyLink,
                     onValueChange = { viewModel.spotifyLink = it },
-                    label = { Text("Spotify / YouTube Link") },
+                    label = { Text(stringResource(R.string.link_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
                 )
@@ -47,7 +49,7 @@ fun Idle(viewModel: HomeScreenViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Convert to MP3", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.convert_to_mp3), style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = viewModel.convertToMp3, onCheckedChange = { viewModel.convertToMp3 = it })
                 }
             }
@@ -57,7 +59,7 @@ fun Idle(viewModel: HomeScreenViewModel) {
             onClick = { viewModel.startScraping() },
             modifier = Modifier.fillMaxWidth().height(48.dp),
         ) {
-            Text("Scrape Playlist")
+            Text(stringResource(R.string.scrape_playlist))
         }
 
     }

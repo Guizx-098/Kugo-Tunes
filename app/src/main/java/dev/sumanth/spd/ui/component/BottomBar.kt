@@ -1,5 +1,6 @@
 package dev.sumanth.spd.ui.component
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -20,10 +21,10 @@ fun BottomBar(navigationItems: List<NavigationItem>, pagerState: PagerState) {
                 icon = {
                     Icon(
                         imageVector = if (pagerState.currentPage == index) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.title
+                        contentDescription = stringResource(item.titleRes)
                     )
                 },
-                label = { Text(item.title) },
+                label = { Text(stringResource(item.titleRes)) },
                 selected = index == pagerState.currentPage,
                 onClick = {
                     coroutineScope.launch {

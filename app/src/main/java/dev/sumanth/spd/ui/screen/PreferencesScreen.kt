@@ -1,5 +1,6 @@
 package dev.sumanth.spd.ui.screen
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Launch
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -36,18 +38,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
+import dev.sumanth.spd.R
+import dev.sumanth.spd.service.UpdateStage
+import dev.sumanth.spd.service.UpdateState
+import dev.sumanth.spd.ui.viewmodel.UpdaterViewModel
 import dev.sumanth.spd.ui.viewmodel.PreferencesScreenViewModel
 import dev.sumanth.spd.utils.SharedPref
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
+fun PreferencesScreen(
+    viewModel: PreferencesScreenViewModel = viewModel(),
+    updaterViewModel: UpdaterViewModel
+) {
 
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val displayPath = remember(viewModel.downloadPath) { viewModel.getDisplayPath() }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -60,7 +71,7 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("General Settings", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.general_settings), style = MaterialTheme.typography.titleMedium)
 
         Card(
             onClick = { launcher.launch(null) },
@@ -70,14 +81,14 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text("Download Location", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.download_location), style = MaterialTheme.typography.labelLarge)
                 Text(
-                    text = viewModel.getDisplayPath(),
+                    text = displayPath ?: stringResource(R.string.no_folder),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Tap to change folder",
+                    text = stringResource(R.string.tap_to_change),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -93,9 +104,9 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Create subfolder per playlist", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.subfolder_title), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "Download tracks into a dedicated folder",
+                        text = stringResource(R.string.subfolder_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -115,9 +126,9 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Simultaneous downloads", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.concurrent_title), style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    text = "How many tracks are downloaded at the same time",
+                    text = stringResource(R.string.concurrent_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -140,7 +151,44 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
             }
         }
 
-        Text("Updates", style = MaterialTheme.typography.titleMedium)
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(stringResource(R.string.language_title), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = stringResource(R.string.language_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        SharedPref.LANG_EN to "English",
+                        SharedPref.LANG_PT_BR to "Português (Brasil)"
+                    ).forEach { (tag, label) ->
+                        FilterChip(
+                            selected = viewModel.language == tag,
+                            onClick = {
+                                if (viewModel.language != tag) {
+                                    viewModel.language = tag
+                                    viewModel.sharedPref.storeLanguage(tag)
+                                    // Re-creates the screen so every string is re-read in the new language
+                                    (context as? Activity)?.recreate()
+                                }
+                            },
+                            label = { Text(label) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        Text(stringResource(R.string.updates), style = MaterialTheme.typography.titleMedium)
         Card(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
@@ -149,7 +197,7 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Auto-check for updates", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.auto_update), style = MaterialTheme.typography.bodyLarge)
                 Switch(
                     checked = viewModel.autoUpdateCheck,
                     onCheckedChange = {
@@ -160,7 +208,19 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
             }
         }
 
-        Text("About", style = MaterialTheme.typography.titleMedium)
+        Button(
+            onClick = { updaterViewModel.checkForUpdate(manual = true) },
+            enabled = UpdateState.stage != UpdateStage.CHECKING,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                stringResource(
+                    if (UpdateState.stage == UpdateStage.CHECKING) R.string.checking else R.string.check_updates
+                )
+            )
+        }
+
+        Text(stringResource(R.string.about), style = MaterialTheme.typography.titleMedium)
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -170,9 +230,9 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                     modifier = Modifier.clickable { viewModel.openProfile(uriHandler) },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Info, contentDescription = "Developer", modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Info, contentDescription = stringResource(R.string.cd_developer), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Developed by ", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.developed_by), style = MaterialTheme.typography.bodyLarge)
                     Text(
                         text = viewModel.developerName,
                         style = MaterialTheme.typography.bodyLarge,
@@ -182,7 +242,7 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         Icons.AutoMirrored.Filled.Launch,
-                        contentDescription = "Open Profile",
+                        contentDescription = stringResource(R.string.cd_open_profile),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
@@ -192,7 +252,7 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Source Code on GitHub",
+                        text = stringResource(R.string.source_code),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -200,18 +260,18 @@ fun PreferencesScreen(viewModel: PreferencesScreenViewModel = viewModel()) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         Icons.AutoMirrored.Filled.Launch,
-                        contentDescription = "Open Link",
+                        contentDescription = stringResource(R.string.cd_open_link),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
                 Text(
-                    text = "Based on Spotify Playlist Downloader by Sumanth (MIT)",
+                    text = stringResource(R.string.based_on),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Version " + viewModel.packageInfo.versionName,
+                    text = stringResource(R.string.version_label, viewModel.packageInfo.versionName ?: ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -11,46 +11,40 @@
 </p>
 
 <p align="center">
-  <strong>An intuitive, feature-rich Android application that downloads Spotify playlists directly to your device storage.</strong><br>
-  Scrape track metadata from Spotify, source high-quality audio streams from YouTube Music, and save fully-tagged audio files with high-res cover art.
+  <strong>Android app that downloads music and videos from Spotify, YouTube Music and YouTube straight to your phone, fully tagged, with cover art.</strong><br>
+  <em>App Android para baixar músicas e vídeos do Spotify, YouTube Music e YouTube, com metadados e capa.</em>
 </p>
 
 ---
 
 ## ✨ Features
 
-- ⚡ **Simultaneous downloads (1–4)**: set in Preferences (default 1). Every track runs its own download → convert → finish pipeline.
-- ▶️ **YouTube / YouTube Music links**: paste a song, video or playlist link (music.youtube.com = audio, youtube.com = video; with *Convert to MP3* on, audio only).
-
-- 🎵 **Direct Spotify Scraping**: Scrapes playlist metadata directly without requiring Spotify API keys or user account login.
-- 📲 **Seamless Spotify Integration**: Supports receiving Spotify playlist links shared directly from the Spotify app via Android's share menu.
-- 🎧 **YouTube Music Audio Sourcing**: Uses [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) to match tracks with the highest quality YouTube Music streams.
-- 🏷️ **Embedded Metadata & High-Res Cover Art**: Automatically embeds Title, Artist, Album metadata, and high-resolution cover art into every audio file.
-- ⚡ **FFmpeg Tagging & Optional MP3 Conversion**: Powered by FFmpeg Kit for fast audio remuxing, metadata tagging, and optional conversion from M4A to MP3.
-- 📂 **Storage Access Framework (SAF)**: Select any custom directory on your device storage to save your downloaded tracks.
-- 🔄 **Queue Management & Selective Retry**: View real-time download progress for each track, cancel active downloads/scraping, and easily retry failed downloads.
-- 🔔 **Background Download Service**: Downloads run reliably in a foreground service with live progress updates in the notification bar.
-- 🚀 **In-App Auto-Updates**: Integrated update checker automatically notifies you when a new version is available on GitHub.
-- 🎨 **Modern Material 3 Design**: Built with Jetpack Compose featuring smooth animations, light/dark themes, and clean navigation.
-
----
-
-## 🚀 How It Works
-
-1. **Share or Paste Link**: Paste a public Spotify playlist URL or share it directly from the Spotify app.
-2. **Scrape Metadata**: The app fetches playlist details, track listings, and album art directly.
-3. **Stream Match**: Automatically finds the best matching audio stream on YouTube Music.
-4. **Tag & Convert**: Uses FFmpeg to tag the audio file with full metadata and optional MP3 conversion.
-5. **Save Locally**: Saves the processed files directly to your chosen folder.
+- 🎵 **Spotify playlists**: reads playlist metadata directly, no API keys or login. Links shared from the Spotify app are accepted through Android's share menu.
+- ▶️ **YouTube Music and YouTube**: paste a song, video or playlist link (`music.youtube.com` = audio, `youtube.com` = video; with *Convert to MP3* on, audio only).
+- ⚡ **Simultaneous downloads (1–4)**: set in Preferences (default 1). Each track runs its own download → convert → finish pipeline, and one failure never stops the others.
+- 🎧 **MP3 conversion**: optional, applied to every track, with a strict check so a track is only "Complete" after the conversion really finished.
+- 🏷️ **Embedded metadata and cover art**: title, artist and cover are written into every file.
+- 🌐 **Languages**: English (default) and Português (Brasil), selectable in Preferences and remembered between sessions.
+- 🚀 **In-app updates from GitHub Releases**: automatic check at startup (can be turned off), a *Check for updates* button, update dialog with release notes, APK download with progress and install, with a "Not now" option that is remembered per version.
+- 📂 **Storage Access Framework**: choose any folder on your device to save the downloads.
+- 🔄 **Queue management**: per-track status (waiting, downloading, processing, converting, complete, error), cancel and retry failed tracks.
+- 🔔 **Background download service** with live progress in the notification.
+- 🎨 **Material 3 design** with light and dark themes.
 
 ---
 
 ## 📥 Installation
 
-1. Go to the [**Releases**](https://github.com/Guizx-098/spd-turbo/releases) page.
-2. Download the latest `.apk` release file.
-3. Install the APK on your Android device (ensure "Install from Unknown Sources" is enabled in your device settings).
-4. Open the app, set your preferred download location in **Preferences**, and start downloading!
+1. Open the [**Releases**](https://github.com/Guizx-098/spd-turbo/releases/latest) page.
+2. Download `SPD-Turbo.apk` from **Assets**.
+3. Open the APK on your Android phone and allow installing from this source if Android asks.
+4. Open **SPD Turbo**, choose the download folder in **Preferences** and start downloading.
+
+**Updating:** the app tells you when a new Release is published. You can also use **Preferences → Check for updates**.
+
+> All releases are signed with the same key, so updates install over the previous version. If you have an older build signed with a different key, uninstall it once before installing.
+
+**Instalação (pt-BR):** baixe o `SPD-Turbo.apk` na página de [Releases](https://github.com/Guizx-098/spd-turbo/releases/latest), abra no celular e permita a instalação quando o Android pedir. Para atualizar, use **Preferências → Checar atualizações**.
 
 ---
 
@@ -60,23 +54,27 @@
 | :--- | :--- |
 | **UI Framework** | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3) |
 | **Language** | Kotlin |
-| **Audio Sourcing** | [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) |
-| **Media Processing** | [FFmpeg Kit](https://github.com/arthenica/ffmpeg-kit) |
-| **HTTP Client** | [OkHttp](https://github.com/square/okhttp) |
-| **Updater** | [apkupdater-library](https://github.com/supersu-man/apkupdater-library) |
+| **Audio / video sourcing** | [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) |
+| **Media processing** | [FFmpeg Kit](https://github.com/arthenica/ffmpeg-kit) |
+| **HTTP client** | [OkHttp](https://github.com/square/okhttp) |
+| **Updates** | GitHub Releases API + Android PackageInstaller |
+
+---
+
+## 🚢 Publishing a release (maintainer)
+
+1. Update `versionCode` / `versionName` in `app/build.gradle.kts` and the notes in `RELEASE_NOTES.md`.
+2. Push to `main` with the commit message exactly `vX.Y.Z` (e.g. `v2.1.0`).
+3. GitHub Actions builds the signed APK and publishes the Release with `SPD-Turbo.apk`. The in-app updater reads that Release.
 
 ---
 
 > SPD Turbo is a modified version of [spotify-playlist-downloader](https://github.com/supersu-man/spotify-playlist-downloader) by Sumanth (MIT).
 
----
-
 ## 🤝 Contributing
 
-If you have ideas for new features, improvements, or run into any bugs, please **[create an issue](https://github.com/Guizx-098/spd-turbo/issues)** on GitHub to suggest more features or report problems.
-
----
+Ideas or bugs? **[Create an issue](https://github.com/Guizx-098/spd-turbo/issues)**.
 
 ## 📜 License
 
-This project is distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
+Distributed under the **MIT License**. See [LICENSE](LICENSE).

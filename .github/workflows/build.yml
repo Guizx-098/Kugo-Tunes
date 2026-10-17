@@ -24,11 +24,12 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      # Release build (not debug): much faster and smoother at runtime, signed with the fixed project key
       - name: Build APK
-        run: bash ./gradlew assembleDebug
+        run: bash ./gradlew assembleRelease
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/SPD-Turbo.apk
+        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/SPD-Turbo.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -42,5 +43,6 @@ jobs:
           artifacts: "app/build/outputs/SPD-Turbo.apk"
           tag: ${{ github.event.head_commit.message }}
           name: SPD Turbo ${{ github.event.head_commit.message }}
-          generateReleaseNotes: true
+          bodyFile: RELEASE_NOTES.md
+          makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -14,6 +14,9 @@ import dev.sumanth.spd.service.DownloadService
 import dev.sumanth.spd.service.DownloadState
 import dev.sumanth.spd.utils.SharedPref
 import dev.sumanth.spd.model.Track
+import dev.sumanth.spd.R
+import dev.sumanth.spd.utils.LocaleHelper
+import dev.sumanth.spd.utils.LocalizedException
 import dev.sumanth.spd.utils.SpotifyScraper
 import dev.sumanth.spd.utils.YoutubeScraper
 import kotlinx.coroutines.CancellationException
@@ -42,8 +45,12 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         
     val tracks get() = DownloadState.tracks
 
+    private fun toast(resId: Int) {
+        Toast.makeText(getApplication(), LocaleHelper.string(getApplication(), resId), Toast.LENGTH_SHORT).show()
+    }
+
     fun startScraping() {
-        if (spotifyLink.isBlank()) return Toast.makeText(getApplication(), "Link is invalid.", Toast.LENGTH_SHORT).show()
+        if (spotifyLink.isBlank()) return toast(R.string.toast_invalid_link)
         val isYoutube = YoutubeScraper.isYoutubeLink(spotifyLink)
         if (!isYoutube && spotifyLink.contains("?")) spotifyLink = spotifyLink.split("?")[0]
         
@@ -56,8 +63,12 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
                 val onProgress: suspend (List<Track>, Int) -> Unit = { fetchedTracks, total ->
                     withContext(Dispatchers.Main) {
                         totalTracksToScrape = total
-                        tracks.clear()
-                        tracks.addAll(fetchedTracks)
+                        if (fetchedTracks.size >= tracks.size) {
+                            tracks.addAll(fetchedTracks.subList(tracks.size, fetchedTracks.size))
+                        } else {
+                            tracks.clear()
+                            tracks.addAll(fetchedTracks)
+                        }
                     }
                 }
                 if (isYoutube) {
@@ -82,12 +93,13 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
                 if (e is CancellationException) return@launch
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    val message = if (e is IllegalArgumentException && e.message != null) {
-                        e.message!!
-                    } else {
-                        "Scraping failed: ${e.message}"
+                    val app = getApplication<Application>()
+                    val message = when {
+                        e is LocalizedException -> LocaleHelper.string(app, e.resId, *e.args.toTypedArray())
+                        e is IllegalArgumentException && e.message != null -> e.message!!
+                        else -> LocaleHelper.string(app, R.string.toast_scrape_failed, e.message ?: "")
                     }
-                    Toast.makeText(getApplication(), message, Toast.LENGTH_LONG).show()
+                    Toast.makeText(app, message, Toast.LENGTH_LONG).show()
                     appStatus = AppStatus.IDLE
                 }
             }
@@ -95,10 +107,10 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun downloadPlaylist() {
-        if (tracks.isEmpty()) return Toast.makeText(getApplication(), "Playlist is empty.", Toast.LENGTH_SHORT).show()
-        if (tracks.none { it.isSelected }) return Toast.makeText(getApplication(), "No tracks selected.", Toast.LENGTH_SHORT).show()
+        if (tracks.isEmpty()) return toast(R.string.toast_playlist_empty)
+        if (tracks.none { it.isSelected }) return toast(R.string.toast_no_selection)
         val downloadPath = sharedPref.getDownloadPath()
-        if (downloadPath == null) return Toast.makeText(getApplication(), "Please select a download folder in Settings.", Toast.LENGTH_SHORT).show()
+        if (downloadPath == null) return toast(R.string.toast_select_folder)
 
         val createSubfolder = sharedPref.getCreateSubfolder()
         val playlistName = DownloadState.playlistName

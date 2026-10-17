@@ -67,11 +67,40 @@ class SharedPref(context: Context) {
         }
     }
 
+    fun getLanguage(): String = readLanguage(context)
+
+    fun storeLanguage(tag: String) {
+        sharedPref.edit {
+            putString(KEY_LANGUAGE, tag)
+        }
+    }
+
+    fun getSkippedUpdateVersion(): String? {
+        return sharedPref.getString(KEY_SKIPPED_UPDATE, null)
+    }
+
+    fun storeSkippedUpdateVersion(version: String) {
+        sharedPref.edit {
+            putString(KEY_SKIPPED_UPDATE, version)
+        }
+    }
+
     companion object {
+        const val LANG_EN = "en"
+        const val LANG_PT_BR = "pt-BR"
+
+        /** Reads the language straight from the preferences file (usable from attachBaseContext). */
+        fun readLanguage(context: Context): String {
+            return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_LANGUAGE, LANG_EN) ?: LANG_EN
+        }
+
         private const val PREFS_NAME = "spd_settings"
         private const val KEY_DOWNLOAD_PATH = "download_path"
         private const val KEY_AUTO_UPDATE_CHECK = "auto_update_check"
         private const val KEY_CREATE_SUBFOLDER = "create_subfolder"
         private const val KEY_CONCURRENT_DOWNLOADS = "concurrent_downloads"
+        private const val KEY_LANGUAGE = "language"
+        private const val KEY_SKIPPED_UPDATE = "skipped_update_version"
     }
 }

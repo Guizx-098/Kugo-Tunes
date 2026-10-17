@@ -1,5 +1,7 @@
 package dev.sumanth.spd.utils
 
+import dev.sumanth.spd.R
+
 import android.util.Base64
 import android.util.Log
 import dev.sumanth.spd.model.DownloadStatus
@@ -67,19 +69,19 @@ class SpotifyScraper(private val client: OkHttpClient = OkHttpClient()) {
     fun parsePlaylistId(input: String): String {
         val trimmed = input.trim()
         if (trimmed.contains("/track/") || trimmed.contains("spotify:track:")) {
-            throw IllegalArgumentException("Single track download is not supported. Please use a playlist link.")
+            throw LocalizedException(R.string.err_single_track, fallback = "Single track download is not supported. Please use a playlist link.")
         }
         if (trimmed.contains("/album/") || trimmed.contains("spotify:album:")) {
-            throw IllegalArgumentException("Album download is not supported. Please use a playlist link.")
+            throw LocalizedException(R.string.err_album, fallback = "Album download is not supported. Please use a playlist link.")
         }
         if (trimmed.contains("/artist/") || trimmed.contains("spotify:artist:")) {
-            throw IllegalArgumentException("Artist download is not supported. Please use a playlist link.")
+            throw LocalizedException(R.string.err_artist, fallback = "Artist download is not supported. Please use a playlist link.")
         }
         if (trimmed.contains("/episode/") || trimmed.contains("spotify:episode:")) {
-            throw IllegalArgumentException("Episode download is not supported. Please use a playlist link.")
+            throw LocalizedException(R.string.err_episode, fallback = "Episode download is not supported. Please use a playlist link.")
         }
         if (trimmed.contains("/show/") || trimmed.contains("spotify:show:")) {
-            throw IllegalArgumentException("Show download is not supported. Please use a playlist link.")
+            throw LocalizedException(R.string.err_show, fallback = "Show download is not supported. Please use a playlist link.")
         }
 
         val regex = Regex("playlist[/:]([a-zA-Z0-9]{22})")
@@ -89,7 +91,7 @@ class SpotifyScraper(private val client: OkHttpClient = OkHttpClient()) {
         val idRegex = Regex("^[a-zA-Z0-9]{22}$")
         if (idRegex.matches(trimmed)) return trimmed
         
-        throw IllegalArgumentException("Unable to extract Spotify playlist ID from: $input")
+        throw LocalizedException(R.string.err_extract_id, listOf(input), "Unable to extract Spotify playlist ID from: $input")
     }
 
     private fun generateTOTP(secretStr: String, timestamp: Long = System.currentTimeMillis()): String {
@@ -337,12 +339,12 @@ class SpotifyScraper(private val client: OkHttpClient = OkHttpClient()) {
                 throw Exception("Failed to fetch metadata: ${response.code}, body: $errorBody")
             }
             val json = JSONObject(response.body?.string() ?: "{}")
-            val p = json.optJSONObject("data")?.optJSONObject("playlistV2") ?: throw Exception("Playlist not found")
+            val p = json.optJSONObject("data")?.optJSONObject("playlistV2") ?: throw LocalizedException(R.string.err_playlist_not_found, fallback = "Playlist not found")
 
             val name = try {
                 p.getString("name")
             } catch (e: Exception) {
-                throw Exception("Playlist is private, make it public")
+                throw LocalizedException(R.string.err_playlist_private, fallback = "Playlist is private, make it public")
             }
             val totalCount = p.optJSONObject("content")?.optInt("totalCount") ?: 0
             val ownerName = p.optJSONObject("ownerV2")?.optJSONObject("data")?.optString("name")
