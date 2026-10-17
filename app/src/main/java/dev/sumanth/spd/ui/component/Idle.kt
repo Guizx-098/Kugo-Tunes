@@ -22,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,7 +39,6 @@ import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
 fun Idle(viewModel: HomeScreenViewModel) {
     val platform = viewModel.platform ?: Platform.SPOTIFY
     val isMusic = platform == Platform.YOUTUBE && viewModel.contentType == ContentType.MUSIC
-    val isYouTubeVideo = platform == Platform.YOUTUBE && viewModel.contentType == ContentType.VIDEO
 
     BackHandler(enabled = viewModel.platform != null) { viewModel.back() }
 
@@ -84,35 +84,24 @@ fun Idle(viewModel: HomeScreenViewModel) {
                 )
 
                 when {
-                    platform == Platform.SPOTIFY || isMusic -> {
-                        Text(stringResource(R.string.choose_format), style = MaterialTheme.typography.bodyLarge)
+                    platform == Platform.SPOTIFY -> {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            val availableFormats = if (platform == Platform.SPOTIFY || isMusic) {
-                                listOf(AudioFormat.MP3, AudioFormat.M4A)
-                            } else {
-                                listOf(AudioFormat.MP3, AudioFormat.MP4)
-                            }
-                            availableFormats.forEach { format ->
-                                FilterChip(
-                                    selected = viewModel.audioFormat == format,
-                                    onClick = { viewModel.audioFormat = format },
-                                    label = { Text(format.name) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                            Text(stringResource(R.string.convert_to_mp3), style = MaterialTheme.typography.bodyLarge)
+                            Switch(checked = viewModel.convertToMp3, onCheckedChange = { viewModel.convertToMp3 = it })
                         }
                     }
 
-                    isYouTubeVideo -> {
+                    isMusic -> {
                         Text(stringResource(R.string.choose_format), style = MaterialTheme.typography.bodyLarge)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            listOf(AudioFormat.MP3, AudioFormat.MP4).forEach { format ->
+                            AudioFormat.entries.forEach { format ->
                                 FilterChip(
                                     selected = viewModel.audioFormat == format,
                                     onClick = { viewModel.audioFormat = format },

@@ -15,8 +15,8 @@ android {
         applicationId = "dev.sumanth.spd"
         minSdk = 24
         targetSdk = 36
-        versionCode = 43
-        versionName = "2.5.1"
+        versionCode = 41
+        versionName = "2.3.2"
     }
 
     signingConfigs {
@@ -63,8 +63,6 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("com.github.teamnewpipe:NewPipeExtractor:v0.26.5")
-    // Bundled yt-dlp/Python runtime: in-app extraction for public social video URLs, no external API server.
-    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("com.arthenica:smart-exception-java:0.2.1")
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 }

@@ -23,7 +23,6 @@ import dev.sumanth.spd.utils.LocalizedException
 import dev.sumanth.spd.utils.SocialVideoExtractor
 import dev.sumanth.spd.utils.SpotifyScraper
 import dev.sumanth.spd.utils.YoutubeScraper
-import dev.sumanth.spd.utils.YtDlpSocialExtractor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -96,21 +95,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
                     DownloadState.playlistName = youtubeResult.name
                 } else if (currentPlatform in SOCIAL_PLATFORMS) {
                     val track = withContext(Dispatchers.IO) {
-                        try {
-                            YtDlpSocialExtractor.extract(getApplication(), spotifyLink, currentPlatform)
-                        } catch (primary: Exception) {
-                            // Keep the existing page parser as a second independent strategy.
-                            try {
-                                SocialVideoExtractor.extract(spotifyLink, currentPlatform)
-                            } catch (fallback: Exception) {
-                                throw IllegalStateException(
-                                    "O extrator integrado (yt-dlp) e o extrator alternativo falharam. " +
-                                        "yt-dlp: ${primary.message ?: primary.javaClass.simpleName}; " +
-                                        "alternativo: ${fallback.message ?: fallback.javaClass.simpleName}",
-                                    fallback
-                                )
-                            }
-                        }
+                        SocialVideoExtractor.extract(spotifyLink, currentPlatform)
                     }
                     totalTracksToScrape = 1
                     tracks.clear()
@@ -192,8 +177,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     /** Music on YouTube: the chosen format decides (MP3 = convert, M4A = keep). Videos are never converted. */
     private fun effectiveConvertToMp3(): Boolean = when (platform) {
-        Platform.YOUTUBE -> audioFormat == AudioFormat.MP3
-        Platform.SPOTIFY -> audioFormat == AudioFormat.MP3
+        Platform.YOUTUBE -> contentType == ContentType.MUSIC && audioFormat == AudioFormat.MP3
         Platform.TIKTOK, Platform.KWAI, Platform.INSTAGRAM, Platform.FACEBOOK -> false
         else -> convertToMp3
     }
