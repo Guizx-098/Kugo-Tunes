@@ -39,7 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.sumanth.spd.R
@@ -197,7 +200,11 @@ fun PreferencesScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(stringResource(R.string.auto_update), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = stringResource(R.string.auto_update),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f).padding(end = 12.dp)
+                )
                 Switch(
                     checked = viewModel.autoUpdateCheck,
                     onCheckedChange = {
@@ -227,17 +234,25 @@ fun PreferencesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
-                    modifier = Modifier.clickable { viewModel.openProfile(uriHandler) },
+                    modifier = Modifier.fillMaxWidth().clickable { viewModel.openProfile(uriHandler) },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Info, contentDescription = stringResource(R.string.cd_developer), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.developed_by), style = MaterialTheme.typography.bodyLarge)
+                    // One Text so a long translation wraps as a normal sentence instead of overflowing the card
                     Text(
-                        text = viewModel.developerName,
+                        text = buildAnnotatedString {
+                            append(stringResource(R.string.developed_by).trim())
+                            append(" ")
+                            withStyle(
+                                SpanStyle(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            ) { append(viewModel.developerName) }
+                        },
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
@@ -248,14 +263,15 @@ fun PreferencesScreen(
                     )
                 }
                 Row(
-                    modifier = Modifier.clickable { viewModel.openGitHub(uriHandler) },
+                    modifier = Modifier.fillMaxWidth().clickable { viewModel.openGitHub(uriHandler) },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = stringResource(R.string.source_code),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(

@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
@@ -41,7 +43,7 @@ fun Idle(viewModel: HomeScreenViewModel) {
     BackHandler(enabled = viewModel.platform != null) { viewModel.back() }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (viewModel.platform != null) {
@@ -60,6 +62,8 @@ fun Idle(viewModel: HomeScreenViewModel) {
                     platform == Platform.SPOTIFY -> stringResource(R.string.playlist_details)
                     platform == Platform.TIKTOK -> stringResource(R.string.platform_tiktok)
                     platform == Platform.KWAI -> stringResource(R.string.platform_kwai)
+                    platform == Platform.INSTAGRAM -> stringResource(R.string.link_title_reel)
+                    platform == Platform.FACEBOOK -> stringResource(R.string.platform_facebook)
                     isMusic -> stringResource(R.string.link_title_music)
                     else -> stringResource(R.string.link_title_video)
                 }
@@ -108,9 +112,16 @@ fun Idle(viewModel: HomeScreenViewModel) {
                         }
                     }
 
-                    platform == Platform.TIKTOK || platform == Platform.KWAI -> {
+                    platform == Platform.TIKTOK || platform == Platform.KWAI ||
+                        platform == Platform.INSTAGRAM || platform == Platform.FACEBOOK -> {
                         Text(
-                            text = stringResource(R.string.watermark_note),
+                            text = stringResource(
+                                when (platform) {
+                                    Platform.INSTAGRAM -> R.string.instagram_note
+                                    Platform.FACEBOOK -> R.string.facebook_note
+                                    else -> R.string.watermark_note
+                                }
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -121,7 +132,7 @@ fun Idle(viewModel: HomeScreenViewModel) {
 
         Button(
             onClick = { viewModel.startScraping() },
-            modifier = Modifier.fillMaxWidth().height(48.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         ) {
             Text(stringResource(if (platform == Platform.SPOTIFY) R.string.scrape_playlist else R.string.btn_continue))
         }

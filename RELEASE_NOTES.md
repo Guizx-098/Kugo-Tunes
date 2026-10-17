@@ -1,23 +1,23 @@
-## Kugo Tunes 2.2.0
+## Kugo Tunes 2.3.0
 
-**Download:** `Kugo-Tunes.apk` (below, under *Assets*). Open it on your Android phone to install.
+**Download:** `Kugo-Tunes.apk` (below, under *Assets*). Open it on your Android phone to install or update.
 
 ### What's new
-- New name, icon and color theme (Kugo Tunes)
-- New home screen: choose Spotify, YouTube / YouTube Music, TikTok or Kwai
-- YouTube: choose Video (highest quality available) or Music (MP3 or M4A)
-- TikTok and Kwai video download (experimental: depends on what the public page provides, may fail if the platform changes or blocks access)
-- Creator section now shows only the app's creator; the open-source license is available in Preferences
-- Language option (English / Português do Brasil), in-app updates, smoother interface
+- YouTube: the original audio track is now preferred over automatic AI dubs; when a single video has several tracks and the original can't be identified, you choose the track in the queue
+- Back arrow and Android back button now work after a download finishes (all platforms), and *Download Another* starts a new download without restarting the app
+- New (experimental): Instagram Reels and Facebook videos, public links only. Stories and private content are not supported; availability, quality and watermark-free files depend on what the public page provides and cannot be guaranteed
+- TikTok: more robust link handling and clearer error messages (fixes could not be confirmed against live links)
+- Português (Brasil) layout fixes in Preferences (update switch and the About section)
+- YouTube covers: falls back to other thumbnail sizes when the largest one doesn't exist
 
-> First time coming from an older build? Uninstall the old version once: this release uses a fixed signing key so future updates install over it normally.
+> Releases keep the same signing key, so this installs over the previous version.
 
 ### Novidades (pt-BR)
-- Novo nome, ícone e tema de cores (Kugo Tunes)
-- Nova tela inicial: escolha Spotify, YouTube / YouTube Music, TikTok ou Kwai
-- YouTube: escolha Vídeo (maior qualidade disponível) ou Música (MP3 ou M4A)
-- Download de vídeos do TikTok e Kwai (experimental: depende do que a página pública fornece e pode falhar se a plataforma mudar ou bloquear o acesso)
-- A seção do criador mostra só o criador do app; a licença de código aberto fica em Preferências
-- Opção de idioma (English / Português do Brasil), atualização dentro do app e interface mais fluida
+- YouTube: a faixa de áudio original agora é preferida em vez de dublagens automáticas por IA; quando um vídeo tem várias faixas e a original não pode ser identificada, você escolhe a faixa na fila
+- A seta de voltar e o botão voltar do Android agora funcionam após o download (todas as plataformas), e *Baixar outro* inicia um novo download sem reiniciar o app
+- Novo (experimental): Reels do Instagram e vídeos do Facebook, somente links públicos. Stories e conteúdo privado não são suportados; disponibilidade, qualidade e arquivos sem marca d'água dependem do que a página pública fornece e não podem ser garantidos
+- TikTok: tratamento de links mais robusto e mensagens de erro mais claras (as correções não puderam ser confirmadas com links reais)
+- Correções de layout em português (Brasil) nas Preferências (botão de atualização automática e seção Sobre)
+- Capas do YouTube: usa outros tamanhos de miniatura quando a maior não existe
 
-> Vindo de uma versão antiga? Desinstale a antiga uma vez: esta versão usa uma chave de assinatura fixa, então as próximas atualizações instalam por cima normalmente.
+> A assinatura é a mesma das versões anteriores, então a atualização instala por cima.

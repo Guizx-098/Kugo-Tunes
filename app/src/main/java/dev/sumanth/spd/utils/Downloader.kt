@@ -68,7 +68,7 @@ object DownloadManager {
     }
 
     /** Direct YouTube / YouTube Music item. [wantVideo] = best muxed mp4, otherwise best m4a audio. */
-    fun getFileMetaFromUrl(mediaLink: String, wantVideo: Boolean): FileMeta {
+    fun getFileMetaFromUrl(mediaLink: String, wantVideo: Boolean, audioTrackId: String? = null): FileMeta {
         val extractor = YouTube.getStreamExtractor(mediaLink)
         extractor.fetchPage()
 
@@ -84,9 +84,11 @@ object DownloadManager {
             if (bestVideo != null && (progressive == null || bestVideo.height > progressive.height)) {
                 val container = bestVideo.format?.suffix ?: "mp4"
                 val audioSuffix = if (container == "mp4") "m4a" else "webm"
-                val audio = extractor.audioStreams
-                    .filter { it.format?.suffix == audioSuffix }
-                    .maxByOrNull { it.bitrate }
+                // Original audio track first (never an automatic dub); the user's explicit choice wins
+                val audio = AudioTrackSelector.pick(
+                    extractor.audioStreams.filter { it.format?.suffix == audioSuffix },
+                    audioTrackId
+                )
                 if (audio != null) {
                     return FileMeta(
                         url = bestVideo.content,
@@ -100,10 +102,10 @@ object DownloadManager {
             return FileMeta(url = fallback.content, name = extractor.name, extention = "mp4")
         }
 
-        val bestStream = extractor.audioStreams
-            .filter { it.format?.suffix == "m4a" }
-            .maxByOrNull { it.bitrate }
-            ?: throw IOException("No audio streams found for ${extractor.name}")
+        val bestStream = AudioTrackSelector.pick(
+            extractor.audioStreams.filter { it.format?.suffix == "m4a" },
+            audioTrackId
+        ) ?: throw IOException("No audio streams found for ${extractor.name}")
 
         return FileMeta(url = bestStream.content, name = extractor.name, extention = "m4a")
     }
@@ -139,7 +141,9 @@ object DownloadManager {
             val thumbFile: File? = coroutineScope {
                 val thumbJob = if (imageUrl != null && !isVideo) {
                     async(Dispatchers.IO) {
-                        val raw = downloadThumbnail(imageUrl, thumbTarget)
+                        // maxresdefault does not exist for every video: try standard YouTube sizes before giving up
+                        val raw = (listOf(imageUrl) + thumbnailFallbacks(imageUrl))
+                            .firstNotNullOfOrNull { downloadThumbnail(it, thumbTarget) }
                         if (raw == null) {
                             Log.w(TAG, "Cover download failed for $fileName")
                             null
@@ -362,6 +366,12 @@ object DownloadManager {
         FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
         val session = FFmpegKit.executeWithArguments(args.toTypedArray())
         return ReturnCode.isSuccess(session.returnCode) && output.exists() && output.length() > 0L
+    }
+
+    private fun thumbnailFallbacks(url: String): List<String> {
+        val id = Regex("https?://i\\.ytimg\\.com/vi(?:_webp)?/([\\w-]{11})/").find(url)?.groupValues?.get(1)
+            ?: return emptyList()
+        return listOf("sddefault", "hqdefault").map { "https://i.ytimg.com/vi/$id/$it.jpg" }.filter { it != url }
     }
 
     private fun downloadThumbnail(url: String, target: File): File? {

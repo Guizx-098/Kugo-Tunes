@@ -28,10 +28,16 @@ data class Track(
     // TikTok / Kwai: direct media address found on the public page + the headers the player used
     val directUrl: String? = null,
     val referer: String? = null,
-    val cookie: String? = null
+    val cookie: String? = null,
+    // YouTube: audio tracks offered by the video when the original one could not be identified reliably
+    val audioOptions: List<AudioOption> = emptyList(),
+    val audioTrackId: String? = null
 )
 
-enum class Platform { SPOTIFY, YOUTUBE, TIKTOK, KWAI }
+/** One selectable audio track of a YouTube video (id = YouTube's audio track id). */
+data class AudioOption(val id: String, val label: String)
+
+enum class Platform { SPOTIFY, YOUTUBE, TIKTOK, KWAI, INSTAGRAM, FACEBOOK }
 
 enum class ContentType { VIDEO, MUSIC }
 

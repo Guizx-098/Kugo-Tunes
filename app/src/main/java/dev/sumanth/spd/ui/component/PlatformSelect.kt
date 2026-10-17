@@ -15,7 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -76,6 +78,22 @@ fun PlatformSelect(viewModel: HomeScreenViewModel) {
                 title = stringResource(R.string.platform_kwai),
                 description = stringResource(R.string.platform_desc_video),
                 onClick = { viewModel.selectPlatform(Platform.KWAI) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            ChoiceCard(
+                icon = Icons.Filled.PhotoCamera,
+                title = stringResource(R.string.platform_instagram),
+                description = stringResource(R.string.platform_desc_reels),
+                onClick = { viewModel.selectPlatform(Platform.INSTAGRAM) },
+                modifier = Modifier.weight(1f)
+            )
+            ChoiceCard(
+                icon = Icons.Filled.ThumbUp,
+                title = stringResource(R.string.platform_facebook),
+                description = stringResource(R.string.platform_desc_video),
+                onClick = { viewModel.selectPlatform(Platform.FACEBOOK) },
                 modifier = Modifier.weight(1f)
             )
         }

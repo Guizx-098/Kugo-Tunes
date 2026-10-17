@@ -130,7 +130,9 @@ class MainActivity : ComponentActivity() {
                 match?.value?.let { url ->
                     if (url.contains("open.spotify.com") || url.contains("spotify.link") ||
                         url.contains("youtube.com") || url.contains("youtu.be") ||
-                        url.contains("tiktok.com") || url.contains("kwai.com") || url.contains("kw.ai")) {
+                        url.contains("tiktok.com") || url.contains("kwai.com") || url.contains("kw.ai") ||
+                        url.contains("instagram.com") || url.contains("facebook.com") ||
+                        url.contains("fb.watch") || url.contains("fb.com")) {
                         homeScreenViewModel.startFromSharedLink(url)
                     }
                 }

@@ -14,7 +14,7 @@
     <string name="cancel_scraping">Cancelar carregamento</string>
     <string name="cancel_download">Cancelar download</string>
     <string name="retry_failed">Tentar novamente as falhas (%1$d)</string>
-    <string name="download_another">Baixar outra</string>
+    <string name="download_another">Baixar outro</string>
     <string name="download_all">Baixar tudo</string>
     <string name="download_selected">Baixar selecionadas (%1$d)</string>
     <string name="status_idle">Aguardando</string>
@@ -122,4 +122,23 @@
     <string name="watermark_note">Baixa o vídeo que a página pública disponibiliza. Pode haver marca d\'água, e a remoção dela não pode ser garantida. A plataforma pode bloquear ou alterar o acesso a qualquer momento.</string>
     <string name="youtube_choose_title">O que você deseja baixar?</string>
     <string name="licenses">Licenças de código aberto</string>
+
+    <!-- Instagram Reels, Facebook, escolha da faixa de áudio -->
+    <string name="platform_instagram">Instagram</string>
+    <string name="platform_facebook">Facebook</string>
+    <string name="platform_desc_reels">Reels</string>
+    <string name="link_title_reel">Link do Reel</string>
+    <string name="choose_audio_track">Escolha a faixa de áudio:</string>
+    <string name="instagram_note">Somente Reels públicos. Baixa o arquivo de vídeo que a página pública disponibiliza, sem recodificar. Stories e conteúdo privado não são suportados, e não é possível garantir um arquivo sem marca d\'água ou na qualidade máxima.</string>
+    <string name="facebook_note">Vídeos públicos e links que você consegue abrir sem fazer login. Baixa o arquivo de maior qualidade que a página disponibiliza, sem recodificar. Conteúdo privado não é suportado, e não é possível garantir um arquivo sem marca d\'água.</string>
+    <string name="err_video_not_public">Não foi possível encontrar um vídeo para baixar. O conteúdo pode ser privado, ter sido removido ou exigir login.</string>
+    <string name="err_network">Não foi possível acessar o site. Verifique sua conexão com a internet.</string>
+    <string name="err_access_blocked">A plataforma bloqueou o acesso a este link. Tente novamente mais tarde.</string>
+    <string name="err_login_required">Este conteúdo exige login, então parece ser privado ou restrito. Só é possível baixar conteúdo público.</string>
+    <string name="err_rate_limited">A plataforma está limitando as requisições agora. Aguarde um momento e tente novamente.</string>
+    <string name="err_http">O site respondeu com um erro (HTTP %1$d). Tente novamente mais tarde.</string>
+    <string name="err_instagram_story">Stories não são suportados. Só é possível baixar Reels públicos.</string>
+    <string name="err_instagram_not_reel">Este não é um link de Reel. Cole o link de um Reel público (instagram.com/reel/...).</string>
+    <string name="err_facebook_invalid">Este link não parece ser de um vídeo do Facebook.</string>
+    <string name="err_tiktok_photo">Esta publicação do TikTok é um carrossel de fotos, não um vídeo.</string>
 </resources>

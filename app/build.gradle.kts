@@ -15,8 +15,8 @@ android {
         applicationId = "dev.sumanth.spd"
         minSdk = 24
         targetSdk = 36
-        versionCode = 38
-        versionName = "2.2.0"
+        versionCode = 39
+        versionName = "2.3.0"
     }
 
     signingConfigs {

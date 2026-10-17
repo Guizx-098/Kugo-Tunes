@@ -124,4 +124,23 @@
     <string name="watermark_note">Downloads the video that the public page provides. A watermark may be included, and its removal cannot be guaranteed. The platform may block or change access at any time.</string>
     <string name="youtube_choose_title">What do you want to download?</string>
     <string name="licenses">Open-source licenses</string>
+
+    <!-- Instagram Reels, Facebook, audio track choice -->
+    <string name="platform_instagram">Instagram</string>
+    <string name="platform_facebook">Facebook</string>
+    <string name="platform_desc_reels">Reels</string>
+    <string name="link_title_reel">Reel link</string>
+    <string name="choose_audio_track">Choose the audio track:</string>
+    <string name="instagram_note">Only public Reels. Downloads the video file that the public page provides, without re-encoding. Stories and private content are not supported, and a watermark-free or maximum-quality file cannot be guaranteed.</string>
+    <string name="facebook_note">Public videos and links you can open without logging in. Downloads the highest quality file that the page provides, without re-encoding. Private content is not supported, and a watermark-free file cannot be guaranteed.</string>
+    <string name="err_video_not_public">Could not find a downloadable video. The content may be private, removed or restricted to logged-in users.</string>
+    <string name="err_network">Could not reach the site. Check your internet connection.</string>
+    <string name="err_access_blocked">The platform blocked access to this link. Try again later.</string>
+    <string name="err_login_required">This content requires a login, so it looks private or restricted. Only public content can be downloaded.</string>
+    <string name="err_rate_limited">The platform is limiting requests right now. Wait a moment and try again.</string>
+    <string name="err_http">The site answered with an error (HTTP %1$d). Try again later.</string>
+    <string name="err_instagram_story">Stories are not supported. Only public Reels can be downloaded.</string>
+    <string name="err_instagram_not_reel">This is not a Reel link. Paste the link of a public Reel (instagram.com/reel/...).</string>
+    <string name="err_facebook_invalid">This does not look like a Facebook video link.</string>
+    <string name="err_tiktok_photo">This TikTok post is a photo slideshow, not a video.</string>
 </resources>

@@ -19,12 +19,15 @@
 
 ## ✨ Features
 
-- 🧭 **Choose what to download**: the home screen asks "What would you like to download?" with Spotify, YouTube / YouTube Music, TikTok and Kwai, and adapts the next steps to the platform.
+- 🧭 **Choose what to download**: the home screen asks "What would you like to download?" with Spotify, YouTube / YouTube Music, TikTok, Kwai, Instagram and Facebook, and adapts the next steps to the platform.
 - 🎵 **Spotify**: playlists straight to the audio flow, no API keys or login. Links shared from the Spotify app are accepted through Android's share menu.
 - ▶️ **YouTube / YouTube Music**: choose **Video** or **Music**.
   - **Video**: picks the highest resolution available; when the best quality comes as separate video and audio streams, they are joined locally without re-encoding. Output is MP4 (H.264) or WebM (VP9) depending on the source.
   - **Music**: choose **MP3** or **M4A** (M4A keeps the original audio, MP3 is converted).
+  - **Audio track**: the original audio track is preferred over automatic dubs. If a video has several tracks and the original cannot be identified, you choose the track in the queue (single videos).
 - 📱 **TikTok and Kwai (experimental)**: video download from shared links, using the video address the public page provides. These pages are not official APIs and can change or block access, so it may fail; a watermark may be present and cannot be guaranteed to be removed.
+- 📸 **Instagram (Reels only) and Facebook videos (experimental)**: public links only, using the video file the public page provides, without re-encoding. Instagram Stories, private accounts and content that needs a login are not supported and are reported with a clear message. These pages are not official APIs and can change or block access, so it may fail; a watermark-free or maximum-quality file cannot be guaranteed.
+- 🔙 **Navigation**: after a download finishes (or fails) the back arrow and Android's back button return to the platform list, and *Download Another* starts a new one without restarting the app.
 - ⚡ **Simultaneous downloads (1–4)**: set in Preferences (default 1). Each track runs its own download → convert → finish pipeline, and one failure never stops the others.
 - 🎧 **MP3 conversion**: applied to every track, with a strict check so a track is only "Complete" after the conversion really finished.
 - 🏷️ **Embedded metadata and cover art**: title, artist and cover are written into every file.

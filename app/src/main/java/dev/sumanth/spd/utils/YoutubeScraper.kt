@@ -37,13 +37,23 @@ object YoutubeScraper {
     private fun scrapeSingle(url: String, isVideo: Boolean): ScrapeResult {
         val extractor = YouTube.getStreamExtractor(url)
         extractor.fetchPage()
+        // Several audio tracks and no reliable "original" marker: let the user pick one in the queue
+        val audioOptions = try {
+            AudioTrackSelector.optionsIfAmbiguous(
+                extractor.audioStreams.filter { it.format?.suffix == "m4a" || it.format?.suffix == "webm" }
+            )
+        } catch (e: Exception) {
+            emptyList()
+        }
         val track = Track(
             title = extractor.name,
             artist = cleanArtist(extractor.uploaderName),
             status = DownloadStatus.IDLE,
             imageUrl = bestThumbnail(extractor.thumbnails, url),
             sourceUrl = url,
-            isVideo = isVideo
+            isVideo = isVideo,
+            audioOptions = audioOptions,
+            audioTrackId = audioOptions.firstOrNull()?.id
         )
         // Blank name -> no playlist subfolder for a single item
         return ScrapeResult("", listOf(track))

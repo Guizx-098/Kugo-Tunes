@@ -1,5 +1,11 @@
 package dev.sumanth.spd.ui.component
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.platform.LocalContext
+import android.app.Activity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.stringResource
@@ -13,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -63,6 +70,18 @@ fun Queue(viewModel: HomeScreenViewModel) {
     val failedCount by remember { derivedStateOf { viewModel.getFailedDownloadsCount() } }
     val downloadedCount by remember { derivedStateOf { viewModel.getDownloadedCount() } }
     val selectedCount by remember { derivedStateOf { viewModel.getSelectedTracksCount() } }
+
+    // Back (system button and arrow behave the same): never leaves the user stuck on a result screen.
+    // While downloading, back only sends the app to the background; the download service keeps running.
+    val activity = LocalContext.current as? Activity
+    BackHandler {
+        when {
+            isScraping -> viewModel.cancelScraping()
+            isDownloading -> activity?.moveTaskToBack(true)
+            isDownloadComplete -> viewModel.backToPlatforms()
+            else -> viewModel.reset()
+        }
+    }
 
     LaunchedEffect(viewModel.currentTrack) {
         // Do not fight the user's own scrolling
@@ -175,6 +194,7 @@ fun Queue(viewModel: HomeScreenViewModel) {
                         onSelectionChange = {
                             viewModel.toggleTrackSelection(index)
                         },
+                        onAudioTrackChange = { viewModel.selectAudioTrack(index, it) },
                         enabled = !isDownloading
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
@@ -185,12 +205,16 @@ fun Queue(viewModel: HomeScreenViewModel) {
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (isScrapingComplete) {
+                if (isScrapingComplete || isDownloadComplete) {
                     OutlinedButton(
-                        onClick = { viewModel.reset() },
-                        modifier = Modifier.height(56.dp)
+                        // After a download the arrow goes back to the platform list; before it, to the link screen
+                        onClick = { if (isDownloadComplete) viewModel.backToPlatforms() else viewModel.reset() },
+                        modifier = Modifier.heightIn(min = 56.dp)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
                     }
                 }
 
@@ -206,7 +230,7 @@ fun Queue(viewModel: HomeScreenViewModel) {
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .height(56.dp),
+                        .heightIn(min = 56.dp),
                     enabled = (isScraping || (viewModel.tracks.isNotEmpty() && selectedCount > 0)),
                     colors = if (isDownloading || isScraping) {
                         ButtonDefaults.buttonColors(
@@ -242,6 +266,7 @@ fun TrackItem(
     index: Int,
     track: Track,
     onSelectionChange: (Boolean) -> Unit,
+    onAudioTrackChange: (String) -> Unit = {},
     enabled: Boolean = true
 ) {
     Row(
@@ -282,6 +307,27 @@ fun TrackItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (track.audioOptions.size > 1) {
+                Text(
+                    text = stringResource(R.string.choose_audio_track),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    track.audioOptions.forEach { option ->
+                        FilterChip(
+                            selected = track.audioTrackId == option.id,
+                            onClick = { onAudioTrackChange(option.id) },
+                            enabled = enabled,
+                            label = { Text(option.label, maxLines = 1) }
+                        )
+                    }
+                }
+            }
         }
 
         StatusIcon(status = track.status)

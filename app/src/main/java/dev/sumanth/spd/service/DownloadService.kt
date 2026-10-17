@@ -144,7 +144,7 @@ class DownloadService : Service() {
                         track.cookie?.let { put("Cookie", it) }
                     }
                 )
-                track.sourceUrl != null -> DownloadManager.getFileMetaFromUrl(track.sourceUrl, wantVideo)
+                track.sourceUrl != null -> DownloadManager.getFileMetaFromUrl(track.sourceUrl, wantVideo, track.audioTrackId)
                 else -> DownloadManager.getFileMeta(track.title, track.artist)
             }
             DownloadManager.downloadFile(

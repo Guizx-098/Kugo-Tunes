@@ -31,6 +31,11 @@ import kotlinx.coroutines.withContext
 
 class HomeScreenViewModel(application: Application) : AndroidViewModel(application) {
 
+    private companion object {
+        /** Single-video platforms handled by SocialVideoExtractor. */
+        val SOCIAL_PLATFORMS = setOf(Platform.TIKTOK, Platform.KWAI, Platform.INSTAGRAM, Platform.FACEBOOK)
+    }
+
     private val sharedPref = SharedPref(application)
     private val spotifyScraper = SpotifyScraper()
     private var scrapingJob: Job? = null
@@ -88,7 +93,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
                     tracks.clear()
                     tracks.addAll(youtubeResult.tracks)
                     DownloadState.playlistName = youtubeResult.name
-                } else if (currentPlatform == Platform.TIKTOK || currentPlatform == Platform.KWAI) {
+                } else if (currentPlatform in SOCIAL_PLATFORMS) {
                     val track = withContext(Dispatchers.IO) {
                         SocialVideoExtractor.extract(spotifyLink, currentPlatform)
                     }
@@ -173,7 +178,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     /** Music on YouTube: the chosen format decides (MP3 = convert, M4A = keep). Videos are never converted. */
     private fun effectiveConvertToMp3(): Boolean = when (platform) {
         Platform.YOUTUBE -> contentType == ContentType.MUSIC && audioFormat == AudioFormat.MP3
-        Platform.TIKTOK, Platform.KWAI -> false
+        Platform.TIKTOK, Platform.KWAI, Platform.INSTAGRAM, Platform.FACEBOOK -> false
         else -> convertToMp3
     }
 
@@ -201,6 +206,8 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
             link.contains("spotify") -> selectPlatform(Platform.SPOTIFY)
             link.contains("tiktok.com") -> selectPlatform(Platform.TIKTOK)
             link.contains("kwai") || link.contains("kw.ai") -> selectPlatform(Platform.KWAI)
+            link.contains("instagram.com") -> selectPlatform(Platform.INSTAGRAM)
+            link.contains("facebook.com") || link.contains("fb.watch") || link.contains("fb.com") -> selectPlatform(Platform.FACEBOOK)
             else -> {
                 selectPlatform(Platform.YOUTUBE)
                 contentType = if (link.contains("music.youtube.com")) ContentType.MUSIC else ContentType.VIDEO
@@ -208,6 +215,18 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
         spotifyLink = url
         startScraping()
+    }
+
+    /** Chosen audio track of a YouTube video that offers several (no original track could be identified). */
+    fun selectAudioTrack(index: Int, trackId: String) {
+        if (index in tracks.indices) tracks[index] = tracks[index].copy(audioTrackId = trackId)
+    }
+
+    /** After a finished download: clears the finished queue and returns to the platform list. */
+    fun backToPlatforms() {
+        reset()
+        platform = null
+        contentType = null
     }
 
     fun reset() {
