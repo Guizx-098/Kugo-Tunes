@@ -85,3 +85,8 @@ Ideas or bugs? **[Create an issue](https://github.com/Guizx-098/spd-turbo/issues
 ## 📜 License
 
 Distributed under the **MIT License**. See [LICENSE](LICENSE).
+
+
+### Social download fallback (Cobalt-compatible API)
+
+Instagram, TikTok, and Facebook currently use the built-in public-page extractor. An optional Cobalt-compatible API can be configured under **Preferences → Extrator social**. Use an instance you operate or have permission to use; do not assume public community endpoints are available. Leave the field empty to keep the built-in extractor. Private/login-gated content is not supported and is not bypassed. API responses and downloaded files still need to be tested against the target platform because platform changes can break extraction.

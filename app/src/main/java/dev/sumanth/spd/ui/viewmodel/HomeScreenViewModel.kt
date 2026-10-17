@@ -21,6 +21,7 @@ import dev.sumanth.spd.R
 import dev.sumanth.spd.utils.LocaleHelper
 import dev.sumanth.spd.utils.LocalizedException
 import dev.sumanth.spd.utils.SocialVideoExtractor
+import dev.sumanth.spd.utils.CobaltApiExtractor
 import dev.sumanth.spd.utils.SpotifyScraper
 import dev.sumanth.spd.utils.YoutubeScraper
 import kotlinx.coroutines.CancellationException
@@ -95,7 +96,11 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
                     DownloadState.playlistName = youtubeResult.name
                 } else if (currentPlatform in SOCIAL_PLATFORMS) {
                     val track = withContext(Dispatchers.IO) {
-                        SocialVideoExtractor.extract(spotifyLink, currentPlatform)
+                        if (CobaltApiExtractor.isConfigured(getApplication())) {
+                            CobaltApiExtractor.extract(getApplication(), spotifyLink, currentPlatform)
+                        } else {
+                            SocialVideoExtractor.extract(spotifyLink, currentPlatform)
+                        }
                     }
                     totalTracksToScrape = 1
                     tracks.clear()

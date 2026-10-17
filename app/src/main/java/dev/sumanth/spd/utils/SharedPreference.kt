@@ -67,6 +67,13 @@ class SharedPref(context: Context) {
         }
     }
 
+    /** Optional self-hosted Cobalt-compatible API base URL. Empty means use the built-in extractor. */
+    fun getCobaltApiUrl(): String = sharedPref.getString(KEY_COBALT_API_URL, "")?.trim().orEmpty()
+
+    fun storeCobaltApiUrl(url: String) {
+        sharedPref.edit { putString(KEY_COBALT_API_URL, url.trim().trimEnd('/')) }
+    }
+
     fun getLanguage(): String = readLanguage(context)
 
     fun storeLanguage(tag: String) {
@@ -101,6 +108,7 @@ class SharedPref(context: Context) {
         private const val KEY_CREATE_SUBFOLDER = "create_subfolder"
         private const val KEY_CONCURRENT_DOWNLOADS = "concurrent_downloads"
         private const val KEY_LANGUAGE = "language"
+        private const val KEY_COBALT_API_URL = "cobalt_api_url"
         private const val KEY_SKIPPED_UPDATE = "skipped_update_version"
     }
 }
