@@ -33,7 +33,14 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
 
-data class FileMeta(val url: String, val name: String, val extention: String)
+data class FileMeta(
+    val url: String,
+    val name: String,
+    val extention: String,
+    /** Separate audio stream (best-quality video is delivered as video-only + audio and merged locally) */
+    val audioUrl: String? = null,
+    val headers: Map<String, String> = emptyMap()
+)
 
 object DownloadManager {
     private const val BUFFER_SIZE = 64 * 1024
@@ -66,11 +73,31 @@ object DownloadManager {
         extractor.fetchPage()
 
         if (wantVideo) {
-            val bestVideo = extractor.videoStreams
+            // Highest resolution available: video-only stream + best audio of the same container family
+            val progressive = extractor.videoStreams
                 .filter { it.format?.suffix == "mp4" }
                 .maxByOrNull { it.height }
-                ?: throw IOException("No video streams found for ${extractor.name}")
-            return FileMeta(url = bestVideo.content, name = extractor.name, extention = "mp4")
+            val bestVideo = extractor.videoOnlyStreams
+                .filter { it.content.isNotBlank() && (it.format?.suffix == "mp4" || it.format?.suffix == "webm") }
+                .maxWithOrNull(compareBy({ it.height }, { if (it.format?.suffix == "mp4") 1 else 0 }))
+
+            if (bestVideo != null && (progressive == null || bestVideo.height > progressive.height)) {
+                val container = bestVideo.format?.suffix ?: "mp4"
+                val audioSuffix = if (container == "mp4") "m4a" else "webm"
+                val audio = extractor.audioStreams
+                    .filter { it.format?.suffix == audioSuffix }
+                    .maxByOrNull { it.bitrate }
+                if (audio != null) {
+                    return FileMeta(
+                        url = bestVideo.content,
+                        name = extractor.name,
+                        extention = container,
+                        audioUrl = audio.content
+                    )
+                }
+            }
+            val fallback = progressive ?: throw IOException("No video streams found for ${extractor.name}")
+            return FileMeta(url = fallback.content, name = extractor.name, extention = "mp4")
         }
 
         val bestStream = extractor.audioStreams
@@ -98,12 +125,15 @@ object DownloadManager {
         playlistName: String? = null,
         isVideo: Boolean = false,
         normalizeCover: Boolean = false,
+        audioUrl: String? = null,
+        headers: Map<String, String> = emptyMap(),
         onStage: (DownloadStatus) -> Unit = {}
     ) {
         // Unique temp names: parallel tasks (or same-title tracks) never share files
         val uid = UUID.randomUUID().toString()
         val tempFile = File(context.cacheDir, "spd_$uid.$extension")
         val thumbTarget = File(context.cacheDir, "spd_$uid.jpg")
+        val audioTemp = File(context.cacheDir, "spd_$uid.audio")
 
         try {
             val thumbFile: File? = coroutineScope {
@@ -119,36 +149,22 @@ object DownloadManager {
                     }
                 } else null
 
-                val request = okhttp3.Request.Builder()
-                    .url(url)
-                    .addHeader("Range", "bytes=0-")
-                    .build()
+                // Video and its separate audio stream (when present) are downloaded at the same time
+                val audioJob = if (audioUrl != null) {
+                    async(Dispatchers.IO) { fetchToFile(audioUrl, audioTemp, headers) }
+                } else null
 
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) throw IOException("Unexpected code $response")
-
-                    val body = response.body ?: throw IOException("Empty response body")
-
-                    body.byteStream().use { input ->
-                        FileOutputStream(tempFile).use { output ->
-                            val buffer = ByteArray(BUFFER_SIZE)
-                            var bytesRead: Int
-                            while (input.read(buffer).also { bytesRead = it } != -1) {
-                                if (!currentCoroutineContext().isActive) {
-                                    throw CancellationException("Download cancelled")
-                                }
-                                output.write(buffer, 0, bytesRead)
-                            }
-                        }
-                    }
-                }
+                fetchToFile(url, tempFile, headers)
+                audioJob?.await()
                 thumbJob?.await()
             }
             currentCoroutineContext().ensureActive()
 
             onStage(if (convertToMp3) DownloadStatus.CONVERTING else DownloadStatus.PROCESSING)
 
-            val processedFile = if (convertToMp3) {
+            val processedFile = if (audioUrl != null) {
+                mergeStreams(tempFile, audioTemp, extension, fileName, artist)
+            } else if (convertToMp3) {
                 convertToMp3(tempFile, fileName, artist, thumbFile)
             } else {
                 tagFile(tempFile, extension, fileName, artist, thumbFile)
@@ -181,7 +197,7 @@ object DownloadManager {
                 }
             }
 
-            val mime = if (isVideo) "video/mp4" else "audio/*"
+            val mime = if (!isVideo) "audio/*" else if (extension == "webm") "video/webm" else "video/mp4"
             val newFile = pickedDir.createFile(mime, "$fileName.$finalExtension")
                 ?: pickedDir.findFile("$fileName.$finalExtension")
                 ?: throw IOException("Failed to create file in selected folder")
@@ -197,6 +213,53 @@ object DownloadManager {
             // Removes every intermediate file of this task (including after failure/cancel)
             context.cacheDir.listFiles { f -> f.name.startsWith("spd_$uid") }?.forEach { it.delete() }
         }
+    }
+
+    /** Downloads [url] into [target]; stops quickly when the coroutine is cancelled. */
+    private suspend fun fetchToFile(url: String, target: File, headers: Map<String, String>) {
+        val builder = okhttp3.Request.Builder().url(url).addHeader("Range", "bytes=0-")
+        headers.forEach { (key, value) -> builder.header(key, value) }
+
+        client.newCall(builder.build()).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+
+            val body = response.body ?: throw IOException("Empty response body")
+
+            body.byteStream().use { input ->
+                FileOutputStream(target).use { output ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        if (!currentCoroutineContext().isActive) {
+                            throw CancellationException("Download cancelled")
+                        }
+                        output.write(buffer, 0, bytesRead)
+                    }
+                }
+            }
+        }
+    }
+
+    /** Joins the video-only and audio streams without re-encoding (keeps quality and sync). Throws on failure. */
+    private fun mergeStreams(video: File, audio: File, ext: String, trackName: String, artist: String): File {
+        val output = File(video.parent, "${video.nameWithoutExtension}.merged.$ext")
+        val args = mutableListOf(
+            "-i", video.absolutePath, "-i", audio.absolutePath,
+            "-map", "0:v:0", "-map", "1:a:0", "-c", "copy",
+            "-metadata", "title=$trackName"
+        )
+        if (artist.isNotBlank()) args += listOf("-metadata", "artist=$artist")
+        // ffmpeg-kit-audio has no "mp4" muxer; "ipod" writes a normal MP4 for H.264 + AAC
+        if (output.extension == "mp4") args += listOf("-f", "ipod")
+        args += listOf("-y", output.absolutePath)
+
+        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
+        val session = FFmpegKit.executeWithArguments(args.toTypedArray())
+        if (!ReturnCode.isSuccess(session.returnCode) || !output.exists() || output.length() == 0L) {
+            output.delete()
+            throw IOException("Could not merge video and audio for $trackName")
+        }
+        return output
     }
 
     fun sanitizeFilename(name: String): String {
@@ -229,7 +292,9 @@ object DownloadManager {
         } else {
             args += listOf("-codec", "copy")
         }
-        args += listOf("-metadata", "title=$trackName", "-metadata", "artist=$artist", "-y", output.absolutePath)
+        args += listOf("-metadata", "title=$trackName", "-metadata", "artist=$artist")
+        if (output.extension == "mp4") args += listOf("-f", "ipod")
+        args += listOf("-y", output.absolutePath)
 
         FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
         val session = FFmpegKit.executeWithArguments(args.toTypedArray())

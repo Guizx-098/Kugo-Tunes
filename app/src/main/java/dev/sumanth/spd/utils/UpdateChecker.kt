@@ -26,7 +26,7 @@ object UpdateChecker {
         val request = Request.Builder()
             .url(LATEST_URL)
             .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "SPD-Turbo")
+            .header("User-Agent", "Kugo-Tunes")
             .build()
 
         DownloadManager.client.newCall(request).execute().use { response ->

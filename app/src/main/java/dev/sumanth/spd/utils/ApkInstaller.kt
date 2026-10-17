@@ -28,7 +28,7 @@ object ApkInstaller {
     private fun updatesDir(context: Context) = File(context.cacheDir, DIR).apply { mkdirs() }
 
     private fun targetFile(context: Context, info: ReleaseInfo) =
-        File(updatesDir(context), "SPD-Turbo-${info.version}.apk")
+        File(updatesDir(context), "Kugo-Tunes-${info.version}.apk")
 
     /** An already downloaded and valid APK for this release, if any (avoids downloading twice). */
     fun existing(context: Context, info: ReleaseInfo): File? {
@@ -45,7 +45,7 @@ object ApkInstaller {
 
         try {
             withContext(Dispatchers.IO) {
-                val request = okhttp3.Request.Builder().url(url).header("User-Agent", "SPD-Turbo").build()
+                val request = okhttp3.Request.Builder().url(url).header("User-Agent", "Kugo-Tunes").build()
                 DownloadManager.client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw IOException("Download failed: ${response.code}")
                     val body = response.body

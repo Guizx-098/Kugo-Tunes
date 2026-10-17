@@ -14,6 +14,8 @@ import dev.sumanth.spd.model.AppStatus
 import dev.sumanth.spd.model.DownloadStatus
 import dev.sumanth.spd.R
 import dev.sumanth.spd.utils.DownloadManager
+import dev.sumanth.spd.utils.FileMeta
+import dev.sumanth.spd.utils.SocialVideoExtractor
 import dev.sumanth.spd.utils.LocaleHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -131,10 +133,19 @@ class DownloadService : Service() {
         setStatus(index, DownloadStatus.DOWNLOADING)
         try {
             val wantVideo = track.isVideo && !convertToMp3
-            val fileMeta = if (track.sourceUrl != null) {
-                DownloadManager.getFileMetaFromUrl(track.sourceUrl, wantVideo)
-            } else {
-                DownloadManager.getFileMeta(track.title, track.artist)
+            val fileMeta = when {
+                track.directUrl != null -> FileMeta(
+                    url = track.directUrl,
+                    name = track.title,
+                    extention = "mp4",
+                    headers = buildMap {
+                        put("User-Agent", SocialVideoExtractor.USER_AGENT)
+                        track.referer?.let { put("Referer", it) }
+                        track.cookie?.let { put("Cookie", it) }
+                    }
+                )
+                track.sourceUrl != null -> DownloadManager.getFileMetaFromUrl(track.sourceUrl, wantVideo)
+                else -> DownloadManager.getFileMeta(track.title, track.artist)
             }
             DownloadManager.downloadFile(
                 this@DownloadService,
@@ -148,7 +159,9 @@ class DownloadService : Service() {
                 createSubfolder,
                 playlistName,
                 wantVideo,
-                track.sourceUrl != null
+                track.sourceUrl != null,
+                audioUrl = fileMeta.audioUrl,
+                headers = fileMeta.headers
             ) { stage -> setStatus(index, stage) }
             setStatus(index, DownloadStatus.COMPLETE)
         } catch (e: Throwable) {

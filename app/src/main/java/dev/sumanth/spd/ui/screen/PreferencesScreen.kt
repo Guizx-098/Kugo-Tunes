@@ -266,9 +266,12 @@ fun PreferencesScreen(
                     )
                 }
                 Text(
-                    text = stringResource(R.string.based_on),
+                    text = stringResource(R.string.licenses),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable {
+                        uriHandler.openUri("https://github.com/Guizx-098/spd-turbo/blob/main/LICENSE")
+                    }
                 )
                 Text(
                     text = stringResource(R.string.version_label, viewModel.packageInfo.versionName ?: ""),

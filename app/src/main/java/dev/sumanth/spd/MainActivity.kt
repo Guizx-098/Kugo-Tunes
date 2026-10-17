@@ -129,9 +129,9 @@ class MainActivity : ComponentActivity() {
                 val match = regex.find(sharedText)
                 match?.value?.let { url ->
                     if (url.contains("open.spotify.com") || url.contains("spotify.link") ||
-                        url.contains("youtube.com") || url.contains("youtu.be")) {
-                        homeScreenViewModel.spotifyLink = url
-                        homeScreenViewModel.startScraping()
+                        url.contains("youtube.com") || url.contains("youtu.be") ||
+                        url.contains("tiktok.com") || url.contains("kwai.com") || url.contains("kw.ai")) {
+                        homeScreenViewModel.startFromSharedLink(url)
                     }
                 }
             }

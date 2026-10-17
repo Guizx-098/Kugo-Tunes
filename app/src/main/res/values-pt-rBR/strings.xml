@@ -40,7 +40,6 @@
     <string name="about">Sobre</string>
     <string name="developed_by">Desenvolvido por </string>
     <string name="source_code">Código-fonte no GitHub</string>
-    <string name="based_on">Baseado no Spotify Playlist Downloader, de Sumanth (MIT)</string>
     <string name="version_label">Versão %1$s</string>
     <string name="cd_developer">Desenvolvedor</string>
     <string name="cd_open_profile">Abrir perfil</string>
@@ -96,4 +95,31 @@
     <string name="upd_error_conflict">O Android recusou a atualização porque ela foi assinada com outra chave. Desinstale o app e instale este APK uma vez; as próximas atualizações funcionarão normalmente.</string>
     <string name="upd_error_generic">A instalação falhou: %1$s</string>
     <string name="upd_installed">Instalação concluída</string>
+
+    <!-- New home flow -->
+    <string name="back">Voltar</string>
+    <string name="btn_continue">Continuar</string>
+    <string name="choose_format">Escolha o formato</string>
+    <string name="choose_platform_title">O que você gostaria de baixar?</string>
+    <string name="err_link_read">Não foi possível ler o link.</string>
+    <string name="err_video_not_found">Não foi possível encontrar um vídeo para baixar neste link.</string>
+    <string name="err_video_unavailable">Este vídeo está indisponível ou é privado.</string>
+    <string name="err_wrong_platform">Este link não pertence à plataforma selecionada.</string>
+    <string name="link_title_music">Link da música</string>
+    <string name="link_title_video">Link do vídeo</string>
+    <string name="paste_link">Cole o link aqui</string>
+    <string name="platform_desc_music">Música</string>
+    <string name="platform_desc_video">Vídeos</string>
+    <string name="platform_desc_video_music">Vídeos e músicas</string>
+    <string name="platform_kwai">Kwai</string>
+    <string name="platform_spotify">Spotify</string>
+    <string name="platform_tiktok">TikTok</string>
+    <string name="platform_youtube">YouTube / YouTube Music</string>
+    <string name="type_music">Música</string>
+    <string name="type_music_desc">Áudio em MP3 ou M4A</string>
+    <string name="type_video">Vídeo</string>
+    <string name="type_video_desc">Maior qualidade disponível</string>
+    <string name="watermark_note">Baixa o vídeo que a página pública disponibiliza. Pode haver marca d\'água, e a remoção dela não pode ser garantida. A plataforma pode bloquear ou alterar o acesso a qualquer momento.</string>
+    <string name="youtube_choose_title">O que você deseja baixar?</string>
+    <string name="licenses">Licenças de código aberto</string>
 </resources>

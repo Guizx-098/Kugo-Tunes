@@ -14,7 +14,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SPDTurbo"
+        android:theme="@style/Theme.Kugo"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
 

@@ -8,7 +8,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.sumanth.spd.model.AppStatus
+import dev.sumanth.spd.model.Platform
 import dev.sumanth.spd.ui.component.Idle
+import dev.sumanth.spd.ui.component.PlatformSelect
+import dev.sumanth.spd.ui.component.YoutubeTypeSelect
 import dev.sumanth.spd.ui.component.Queue
 import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
 
@@ -17,7 +20,11 @@ fun HomeScreen(viewModel: HomeScreenViewModel = viewModel()) {
     Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         when (viewModel.appStatus) {
             AppStatus.IDLE -> {
-                Idle(viewModel)
+                when {
+                    viewModel.platform == null -> PlatformSelect(viewModel)
+                    viewModel.platform == Platform.YOUTUBE && viewModel.contentType == null -> YoutubeTypeSelect(viewModel)
+                    else -> Idle(viewModel)
+                }
             }
             else -> {
                 Queue(viewModel)

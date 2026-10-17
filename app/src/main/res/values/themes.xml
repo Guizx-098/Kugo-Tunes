@@ -1,12 +1,12 @@
 <resources>
 
-    <color name="md_theme_light_primary">#96480E</color>
-    <color name="md_theme_light_background">#FFFFFBFF</color>
+    <color name="md_theme_light_primary">#2B45E0</color>
+    <color name="md_theme_light_background">#FFFAF8FF</color>
 
-    <color name="md_theme_dark_primary">#FFB68A</color>
-    <color name="md_theme_dark_background">#201A17</color>
+    <color name="md_theme_dark_primary">#8EA6FF</color>
+    <color name="md_theme_dark_background">#050818</color>
 
-    <style name="Theme.SPDTurbo" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Kugo" parent="android:Theme.Material.NoActionBar">
         <item name="android:colorPrimary">@color/md_theme_light_primary</item>
         <item name="android:colorBackground">@color/md_theme_light_background</item>
     </style>

@@ -10,6 +10,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.sumanth.spd.model.AppStatus
+import dev.sumanth.spd.model.AudioFormat
+import dev.sumanth.spd.model.ContentType
+import dev.sumanth.spd.model.Platform
 import dev.sumanth.spd.service.DownloadService
 import dev.sumanth.spd.service.DownloadState
 import dev.sumanth.spd.utils.SharedPref
@@ -17,6 +20,7 @@ import dev.sumanth.spd.model.Track
 import dev.sumanth.spd.R
 import dev.sumanth.spd.utils.LocaleHelper
 import dev.sumanth.spd.utils.LocalizedException
+import dev.sumanth.spd.utils.SocialVideoExtractor
 import dev.sumanth.spd.utils.SpotifyScraper
 import dev.sumanth.spd.utils.YoutubeScraper
 import kotlinx.coroutines.CancellationException
@@ -37,6 +41,11 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         
     var spotifyLink by mutableStateOf("")
     var convertToMp3 by mutableStateOf(false)
+
+    // New home flow: platform -> (YouTube only) Video / Music -> link (+ format for music)
+    var platform by mutableStateOf<Platform?>(null)
+    var contentType by mutableStateOf<ContentType?>(null)
+    var audioFormat by mutableStateOf(AudioFormat.MP3)
     var totalTracksToScrape by mutableIntStateOf(0)
     
     var currentTrack: Int
@@ -51,8 +60,8 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     fun startScraping() {
         if (spotifyLink.isBlank()) return toast(R.string.toast_invalid_link)
-        val isYoutube = YoutubeScraper.isYoutubeLink(spotifyLink)
-        if (!isYoutube && spotifyLink.contains("?")) spotifyLink = spotifyLink.split("?")[0]
+        val currentPlatform = platform ?: Platform.SPOTIFY
+        if (currentPlatform == Platform.SPOTIFY && spotifyLink.contains("?")) spotifyLink = spotifyLink.split("?")[0]
         
         appStatus = AppStatus.SCRAPING
         tracks.clear()
@@ -71,14 +80,22 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
                         }
                     }
                 }
-                if (isYoutube) {
+                if (currentPlatform == Platform.YOUTUBE) {
                     val youtubeResult = withContext(Dispatchers.IO) {
-                        YoutubeScraper.scrape(spotifyLink, onProgress)
+                        YoutubeScraper.scrape(spotifyLink, contentType == ContentType.VIDEO, onProgress)
                     }
                     totalTracksToScrape = youtubeResult.tracks.size
                     tracks.clear()
                     tracks.addAll(youtubeResult.tracks)
                     DownloadState.playlistName = youtubeResult.name
+                } else if (currentPlatform == Platform.TIKTOK || currentPlatform == Platform.KWAI) {
+                    val track = withContext(Dispatchers.IO) {
+                        SocialVideoExtractor.extract(spotifyLink, currentPlatform)
+                    }
+                    totalTracksToScrape = 1
+                    tracks.clear()
+                    tracks.add(track)
+                    DownloadState.playlistName = ""
                 } else {
                     val scrapeResult = withContext(Dispatchers.IO) {
                         spotifyScraper.scrapePlaylist(spotifyLink, onProgress)
@@ -118,7 +135,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         val intent = Intent(getApplication(), DownloadService::class.java).apply {
             action = DownloadService.ACTION_START
             putExtra(DownloadService.EXTRA_DOWNLOAD_PATH, downloadPath)
-            putExtra(DownloadService.EXTRA_CONVERT_TO_MP3, convertToMp3)
+            putExtra(DownloadService.EXTRA_CONVERT_TO_MP3, effectiveConvertToMp3())
             putExtra(DownloadService.EXTRA_CREATE_SUBFOLDER, createSubfolder)
             putExtra(DownloadService.EXTRA_PLAYLIST_NAME, playlistName)
             putExtra(DownloadService.EXTRA_CONCURRENT_DOWNLOADS, sharedPref.getConcurrentDownloads())
@@ -151,6 +168,46 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         scrapingJob?.cancel()
         appStatus = AppStatus.IDLE
         tracks.clear()
+    }
+
+    /** Music on YouTube: the chosen format decides (MP3 = convert, M4A = keep). Videos are never converted. */
+    private fun effectiveConvertToMp3(): Boolean = when (platform) {
+        Platform.YOUTUBE -> contentType == ContentType.MUSIC && audioFormat == AudioFormat.MP3
+        Platform.TIKTOK, Platform.KWAI -> false
+        else -> convertToMp3
+    }
+
+    fun selectPlatform(selected: Platform) {
+        platform = selected
+        contentType = null
+        spotifyLink = ""
+    }
+
+    /** One step back in the home flow (link -> type -> platform list). */
+    fun back() {
+        if (platform == Platform.YOUTUBE && contentType != null) {
+            contentType = null
+        } else {
+            platform = null
+            contentType = null
+        }
+        spotifyLink = ""
+    }
+
+    /** A link shared from another app already tells which platform to use. */
+    fun startFromSharedLink(url: String) {
+        val link = url.lowercase()
+        when {
+            link.contains("spotify") -> selectPlatform(Platform.SPOTIFY)
+            link.contains("tiktok.com") -> selectPlatform(Platform.TIKTOK)
+            link.contains("kwai") || link.contains("kw.ai") -> selectPlatform(Platform.KWAI)
+            else -> {
+                selectPlatform(Platform.YOUTUBE)
+                contentType = if (link.contains("music.youtube.com")) ContentType.MUSIC else ContentType.VIDEO
+            }
+        }
+        spotifyLink = url
+        startScraping()
     }
 
     fun reset() {

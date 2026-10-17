@@ -24,5 +24,15 @@ data class Track(
     val imageUrl: String? = null,
     val isSelected: Boolean = true,
     val sourceUrl: String? = null,
-    val isVideo: Boolean = false
+    val isVideo: Boolean = false,
+    // TikTok / Kwai: direct media address found on the public page + the headers the player used
+    val directUrl: String? = null,
+    val referer: String? = null,
+    val cookie: String? = null
 )
+
+enum class Platform { SPOTIFY, YOUTUBE, TIKTOK, KWAI }
+
+enum class ContentType { VIDEO, MUSIC }
+
+enum class AudioFormat { MP3, M4A }

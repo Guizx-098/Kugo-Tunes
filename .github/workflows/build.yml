@@ -29,20 +29,20 @@ jobs:
         run: bash ./gradlew assembleRelease
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/SPD-Turbo.apk
+        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/Kugo-Tunes.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SPD-Turbo
-          path: app/build/outputs/SPD-Turbo.apk
+          name: Kugo-Tunes
+          path: app/build/outputs/Kugo-Tunes.apk
 
       - name: Create Release
         if: ${{ steps.regex-match.outputs.match != '' }}
         uses: ncipollo/release-action@v1.13.0
         with:
-          artifacts: "app/build/outputs/SPD-Turbo.apk"
+          artifacts: "app/build/outputs/Kugo-Tunes.apk"
           tag: ${{ github.event.head_commit.message }}
-          name: SPD Turbo ${{ github.event.head_commit.message }}
+          name: Kugo Tunes ${{ github.event.head_commit.message }}
           bodyFile: RELEASE_NOTES.md
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}

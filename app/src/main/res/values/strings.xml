@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">SPD Turbo</string>
+    <string name="app_name" translatable="false">Kugo Tunes</string>
     <string name="update_url" translatable="false">https://github.com/Guizx-098/spd-turbo/releases/latest</string>
     <string name="nav_home">Home</string>
     <string name="nav_preferences">Preferences</string>
@@ -42,7 +42,6 @@
     <string name="about">About</string>
     <string name="developed_by">Developed by </string>
     <string name="source_code">Source Code on GitHub</string>
-    <string name="based_on">Based on Spotify Playlist Downloader by Sumanth (MIT)</string>
     <string name="version_label">Version %1$s</string>
     <string name="cd_developer">Developer</string>
     <string name="cd_open_profile">Open Profile</string>
@@ -98,4 +97,31 @@
     <string name="upd_error_conflict">Android rejected the update because it was signed with a different key. Uninstall the app and install this APK once; future updates will work normally.</string>
     <string name="upd_error_generic">The installation failed: %1$s</string>
     <string name="upd_installed">Installation complete</string>
+
+    <!-- New home flow -->
+    <string name="back">Back</string>
+    <string name="btn_continue">Continue</string>
+    <string name="choose_format">Choose a format</string>
+    <string name="choose_platform_title">What would you like to download?</string>
+    <string name="err_link_read">Unable to read the link.</string>
+    <string name="err_video_not_found">Could not find a downloadable video at this link.</string>
+    <string name="err_video_unavailable">This video is unavailable or private.</string>
+    <string name="err_wrong_platform">This link does not belong to the selected platform.</string>
+    <string name="link_title_music">Music link</string>
+    <string name="link_title_video">Video link</string>
+    <string name="paste_link">Paste the link here</string>
+    <string name="platform_desc_music">Music</string>
+    <string name="platform_desc_video">Videos</string>
+    <string name="platform_desc_video_music">Videos and music</string>
+    <string name="platform_kwai">Kwai</string>
+    <string name="platform_spotify">Spotify</string>
+    <string name="platform_tiktok">TikTok</string>
+    <string name="platform_youtube">YouTube / YouTube Music</string>
+    <string name="type_music">Music</string>
+    <string name="type_music_desc">Audio as MP3 or M4A</string>
+    <string name="type_video">Video</string>
+    <string name="type_video_desc">Highest quality available</string>
+    <string name="watermark_note">Downloads the video that the public page provides. A watermark may be included, and its removal cannot be guaranteed. The platform may block or change access at any time.</string>
+    <string name="youtube_choose_title">What do you want to download?</string>
+    <string name="licenses">Open-source licenses</string>
 </resources>

@@ -18,11 +18,10 @@ object YoutubeScraper {
         return link.contains("youtube.com/") || link.contains("youtu.be/")
     }
 
-    suspend fun scrape(input: String, onProgress: suspend (List<Track>, Int) -> Unit): ScrapeResult {
+    suspend fun scrape(input: String, isVideo: Boolean, onProgress: suspend (List<Track>, Int) -> Unit): ScrapeResult {
         val url = Regex("https?://\\S+").find(input)?.value
             ?: throw LocalizedException(R.string.err_youtube_read, fallback = "Unable to read the YouTube link.")
-        // YouTube Music (music.youtube.com) -> audio. YouTube -> video.
-        val isVideo = !url.contains("music.youtube.com")
+        // [isVideo] comes from the user's choice (Video or Music) on the YouTube / YouTube Music screen
 
         val listId = Regex("[?&]list=([\\w-]+)").find(url)?.groupValues?.get(1)
         if (listId != null && !listId.startsWith("RD")) {

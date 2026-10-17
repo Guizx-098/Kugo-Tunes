@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SPD Turbo"
+rootProject.name = "Kugo Tunes"
 include(":app")
