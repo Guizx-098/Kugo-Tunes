@@ -143,4 +143,6 @@
     <string name="err_instagram_not_reel">This is not a Reel link. Paste the link of a public Reel (instagram.com/reel/...).</string>
     <string name="err_facebook_invalid">This does not look like a Facebook video link.</string>
     <string name="err_tiktok_photo">This TikTok post is a photo slideshow, not a video.</string>
+    <string name="err_extraction_failed">Could not read the video data from the page. The platform may have changed its page or blocked this request.</string>
+    <string name="err_post_without_video">This post does not seem to contain a video that can be downloaded.</string>
 </resources>

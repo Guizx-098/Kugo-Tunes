@@ -10,6 +10,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import org.json.JSONObject
+import android.util.Log
 import java.io.IOException
 
 /**
@@ -66,35 +67,16 @@ object SocialVideoExtractor {
         }
         val client = DownloadManager.client.newBuilder().cookieJar(jar).followRedirects(true).build()
 
-        var finalUrl = pageUrl
-        val resolved: Found = try {
-            // Mobile page first; Facebook sometimes only exposes the file addresses on the desktop page
-            val agents = if (platform == Platform.FACEBOOK) listOf(USER_AGENT, DESKTOP_USER_AGENT) else listOf(USER_AGENT)
-            var found: Found? = null
-            for (agent in agents) {
-                val page = fetchPage(client, pageUrl, agent, platform)
-                finalUrl = page.finalUrl
-                found = parse(platform, page.html)
-                if (found?.videoUrl != null) break
-            }
-            if (found?.videoUrl == null && platform == Platform.INSTAGRAM) {
-                // Instagram's public embed of a Reel (the same page used to embed it on other sites)
-                val embed = fetchPage(client, pageUrl.trimEnd('/') + "/embed/", USER_AGENT, platform)
-                val fromEmbed = parseInstagramEmbed(embed.html)
-                if (fromEmbed?.videoUrl != null) {
-                    found = fromEmbed.copy(title = found?.title.orEmpty().ifBlank { fromEmbed.title }, cover = found?.cover ?: fromEmbed.cover)
-                }
-            }
-            found?.takeIf { it.videoUrl != null }
-                ?: throw LocalizedException(
-                    if (platform == Platform.INSTAGRAM || platform == Platform.FACEBOOK) R.string.err_video_not_public else R.string.err_video_not_found,
-                    fallback = "Could not find a downloadable video at this link."
-                )
+        val resolvedPage: Resolved = try {
+            resolve(client, platform, pageUrl)
         } catch (e: LocalizedException) {
             throw e
         } catch (e: IOException) {
+            Log.w(TAG, "$platform network failure: ${e.javaClass.simpleName}")
             throw LocalizedException(R.string.err_network, fallback = "Could not reach the site. Check your internet connection.")
         }
+        val resolved = resolvedPage.found
+        val finalUrl = resolvedPage.finalUrl
         val videoUrl = resolved.videoUrl!!
 
         val cookieHeader = synchronized(store) { store.distinctBy { it.name }.joinToString("; ") { "${it.name}=${it.value}" } }
@@ -116,6 +98,79 @@ object SocialVideoExtractor {
             referer = finalUrl,
             cookie = cookieHeader.ifBlank { null }
         )
+    }
+
+    private const val TAG = "SocialExtractor"
+
+    private class Resolved(val found: Found, val finalUrl: String)
+
+    /** Link without query string: safe to log (no tokens/cookies are ever logged). */
+    private fun safe(url: String): String = url.substringBefore('?')
+
+    /**
+     * Fetches the public page(s) and looks for a video file. Every step is logged (without cookies or tokens) and the
+     * final error says which step failed, instead of one generic message.
+     */
+    private fun resolve(client: okhttp3.OkHttpClient, platform: Platform, pageUrl: String): Resolved {
+        var finalUrl = pageUrl
+        var lastHtml = ""
+        val agents = if (platform == Platform.TIKTOK || platform == Platform.FACEBOOK) listOf(USER_AGENT, DESKTOP_USER_AGENT) else listOf(USER_AGENT)
+        for (agent in agents) {
+            val page = fetchPage(client, pageUrl, agent, platform)
+            finalUrl = page.finalUrl
+            lastHtml = page.html
+            val found = parse(platform, page.html)
+            Log.w(TAG, "$platform page: ${safe(pageUrl)} -> ${safe(finalUrl)} html=${page.html.length}B video=${found?.videoUrl != null}")
+            if (found?.videoUrl != null) return Resolved(found, finalUrl)
+        }
+
+        if (platform == Platform.INSTAGRAM) {
+            val code = Regex("/reel/([\\w-]+)").find(pageUrl)?.groupValues?.get(1)
+            if (code != null) {
+                val embeds = listOf("https://www.instagram.com/reel/$code/embed/captioned/", "https://www.instagram.com/reel/$code/embed/", "https://www.instagram.com/p/$code/embed/captioned/")
+                for (embed in embeds) {
+                    val page = try { fetchPage(client, embed, USER_AGENT, platform) } catch (e: LocalizedException) { throw e } catch (e: IOException) { continue }
+                    val found = parseInstagramEmbed(page.html)
+                    Log.w(TAG, "INSTAGRAM embed ${safe(embed)} html=${page.html.length}B video=${found?.videoUrl != null}")
+                    if (found?.videoUrl != null) return Resolved(found, finalUrl)
+                }
+            }
+            throw LocalizedException(R.string.err_video_not_public, fallback = "Could not find a downloadable video.")
+        }
+
+        if (platform == Platform.FACEBOOK) {
+            // A /share/ link redirects to a post page: find the video it contains and read the video page itself
+            val id = Regex("\"(?:video_id|videoId)\"\\s*:\\s*\"(\\d+)\"").find(lastHtml)?.groupValues?.get(1)
+                ?: Regex("/(?:videos|reel)/(\\d+)").find(finalUrl)?.groupValues?.get(1)
+                ?: Regex("[?&]v=(\\d+)").find(finalUrl)?.groupValues?.get(1)
+                ?: Regex("/(?:videos|reel)/(\\d+)").find(lastHtml)?.groupValues?.get(1)
+            Log.w(TAG, "FACEBOOK video id found=${id != null}")
+            if (id == null) throw LocalizedException(R.string.err_post_without_video, fallback = "This post does not seem to contain a video.")
+            val candidates = listOf(
+                "https://www.facebook.com/watch/?v=$id",
+                "https://www.facebook.com/reel/$id",
+                "https://www.facebook.com/plugins/video.php?href=" + java.net.URLEncoder.encode("https://www.facebook.com/watch/?v=$id", "UTF-8")
+            )
+            for (candidate in candidates) for (agent in agents) {
+                val page = try { fetchPage(client, candidate, agent, platform) } catch (e: LocalizedException) { throw e } catch (e: IOException) { continue }
+                val found = parseFacebook(page.html)
+                Log.w(TAG, "FACEBOOK ${safe(candidate)} html=${page.html.length}B video=${found?.videoUrl != null}")
+                if (found?.videoUrl != null) return Resolved(found, page.finalUrl)
+            }
+            throw LocalizedException(R.string.err_video_not_public, fallback = "Could not find a downloadable video.")
+        }
+
+        if (platform == Platform.TIKTOK) {
+            val lower = lastHtml.lowercase()
+            val blocked = lastHtml.length < 3000 || lower.contains("captcha") || lower.contains("verify to continue")
+            val hasData = lastHtml.contains("__UNIVERSAL_DATA_FOR_REHYDRATION__") || lastHtml.contains("SIGI_STATE")
+            Log.w(TAG, "TIKTOK no video: blocked=$blocked hasData=$hasData")
+            throw LocalizedException(
+                if (blocked) R.string.err_access_blocked else if (!hasData) R.string.err_extraction_failed else R.string.err_video_not_found,
+                fallback = "Could not find a downloadable video at this link."
+            )
+        }
+        throw LocalizedException(R.string.err_video_not_found, fallback = "Could not find a downloadable video at this link.")
     }
 
     private data class Page(val html: String, val finalUrl: String)
@@ -182,13 +237,12 @@ object SocialVideoExtractor {
     /** Accepts watch / reel / videos / share links and fb.watch short links. */
     private fun validateFacebook(url: String): String {
         val parsed = url.toHttpUrlOrNull()
-        val host = parsed?.host?.lowercase().orEmpty()
-        val path = parsed?.encodedPath?.lowercase().orEmpty()
-        val ok = host == "fb.watch" || host.endsWith(".fb.watch") ||
-            path.startsWith("/watch") || path.startsWith("/reel/") || path.contains("/videos/") ||
-            path.startsWith("/share/v/") || path.startsWith("/share/r/") || path.startsWith("/video.php") ||
-            path.startsWith("/share/")
-        if (!ok) throw LocalizedException(R.string.err_facebook_invalid, fallback = "This does not look like a Facebook video link.")
+        val path = parsed?.encodedPath.orEmpty()
+        // Share links (/share/p/, /share/v/, /share/r/), posts, watch, reels, videos and fb.watch: the real content
+        // is decided after the redirect, so only a bare home page is rejected here.
+        if (parsed == null || path.trim('/').isEmpty() && !hostIs(url, "fb.watch")) {
+            throw LocalizedException(R.string.err_facebook_invalid, fallback = "This does not look like a Facebook video link.")
+        }
         return url
     }
 
@@ -287,7 +341,12 @@ object SocialVideoExtractor {
         return Found(video, meta("og:title").orEmpty(), "", meta("og:image"))
     }
 
-    private fun unescape(value: String): String = value
-        .replace(Regex("\\\\u([0-9a-fA-F]{4})")) { it.groupValues[1].toInt(16).toChar().toString() }
-        .replace("\\/", "/").replace("&amp;", "&")
+    private fun unescape(value: String): String {
+        var v = value
+        // JSON embedded in JSON is escaped twice (\\/ and \\u0026): reduce to single escapes first
+        while (v.contains("\\\\")) v = v.replace("\\\\", "\\")
+        return v
+            .replace(Regex("\\\\u([0-9a-fA-F]{4})")) { it.groupValues[1].toInt(16).toChar().toString() }
+            .replace("\\/", "/").replace("&amp;", "&")
+    }
 }

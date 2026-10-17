@@ -141,4 +141,6 @@
     <string name="err_instagram_not_reel">Este não é um link de Reel. Cole o link de um Reel público (instagram.com/reel/...).</string>
     <string name="err_facebook_invalid">Este link não parece ser de um vídeo do Facebook.</string>
     <string name="err_tiktok_photo">Esta publicação do TikTok é um carrossel de fotos, não um vídeo.</string>
+    <string name="err_extraction_failed">Não foi possível ler os dados do vídeo na página. A plataforma pode ter mudado a página ou bloqueado esta requisição.</string>
+    <string name="err_post_without_video">Esta publicação não parece conter um vídeo que possa ser baixado.</string>
 </resources>
