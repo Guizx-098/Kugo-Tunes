@@ -21,13 +21,12 @@ import dev.sumanth.spd.utils.LocalizedException
 import dev.sumanth.spd.utils.YtDlp
 import dev.sumanth.spd.utils.TikWm
 import dev.sumanth.spd.utils.DirectFile
-import dev.sumanth.spd.utils.SocialVideoExtractor
+import dev.sumanth.spd.utils.DownloadHttpException
 import dev.sumanth.spd.model.Platform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
@@ -202,6 +201,16 @@ class DownloadService : Service() {
             e.printStackTrace()
             val reason = if (e is LocalizedException) {
                 LocaleHelper.string(this, e.resId, *e.args.toTypedArray())
+            } else if (e is DownloadHttpException) {
+                LocaleHelper.string(
+                    this,
+                    when (e.code) {
+                        401, 403 -> R.string.err_access_blocked
+                        404, 410 -> R.string.err_video_unavailable
+                        429 -> R.string.err_rate_limited
+                        else -> R.string.err_download_generic
+                    }
+                )
             } else {
                 LocaleHelper.string(this, R.string.err_download_generic)
             }
@@ -229,7 +238,7 @@ class DownloadService : Service() {
                         DirectFile.download(
                             this, alt.directUrl ?: throw e,
                             buildMap {
-                                put("User-Agent", alt.userAgent ?: SocialVideoExtractor.USER_AGENT)
+                                put("User-Agent", SocialVideoExtractor.USER_AGENT)
                                 alt.referer?.let { put("Referer", it) }
                                 alt.cookie?.let { put("Cookie", it) }
                             }
