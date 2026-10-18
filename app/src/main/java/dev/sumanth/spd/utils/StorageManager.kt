@@ -8,6 +8,7 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
@@ -131,6 +132,7 @@ object StorageManager {
             )
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun saveToMediaStore(context: Context, file: File, folder: String, playlist: String?, fileName: String, extension: String) {
         val relative = buildString {
             append(Environment.DIRECTORY_DOWNLOADS).append('/').append(ROOT).append('/').append(folder)

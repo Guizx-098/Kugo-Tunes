@@ -3,6 +3,11 @@ on:
   push:
     branches:
       - 'main'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish as a Release (example: v2.6.1). Leave empty to only build.'
+        required: false
 permissions:
   contents: write
 jobs:
@@ -14,7 +19,7 @@ jobs:
       - uses: kaisugi/action-regex-match@v1.0.2
         id: regex-match
         with:
-          text: ${{ github.event.head_commit.message }}
+          text: ${{ github.event.head_commit.message || 'manual' }}
           regex: '^v[0-9]+\.[0-9]+\.[0-9]+$'
 
       - name: Setup JDK
@@ -26,7 +31,20 @@ jobs:
 
       # Release build (not debug): much faster and smoother at runtime, signed with the fixed project key
       - name: Build APK
-        run: bash ./gradlew assembleRelease
+        run: |
+          set -o pipefail
+          bash ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
+
+      - name: Show build errors
+        if: failure()
+        run: |
+          {
+            echo '### Build failed'
+            echo '```'
+            grep -E "^e: |error:|What went wrong|Execution failed|Could not |Unresolved|FAILED" -A3 build.log | head -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^e: |What went wrong|Execution failed|Could not " build.log | head -20 | while IFS= read -r line; do echo "::error::${line}"; done
 
       - name: Rename APK
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/Kugo-Tunes.apk
@@ -37,12 +55,14 @@ jobs:
           path: app/build/outputs/Kugo-Tunes.apk
 
       - name: Create Release
-        if: ${{ steps.regex-match.outputs.match != '' }}
+        if: ${{ steps.regex-match.outputs.match != '' || inputs.version != '' }}
         uses: ncipollo/release-action@v1.13.0
         with:
           artifacts: "app/build/outputs/Kugo-Tunes.apk"
-          tag: ${{ github.event.head_commit.message }}
-          name: Kugo Tunes ${{ github.event.head_commit.message }}
+          tag: ${{ inputs.version || github.event.head_commit.message }}
+          name: Kugo Tunes ${{ inputs.version || github.event.head_commit.message }}
           bodyFile: RELEASE_NOTES.md
+          allowUpdates: true
+          replacesArtifacts: true
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}

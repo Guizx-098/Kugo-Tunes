@@ -72,12 +72,28 @@ object YtDlp {
             val now = System.currentTimeMillis()
             if (!force && now - prefs.getLong("last_update", 0L) < UPDATE_EVERY_MS) return
             try {
-                YoutubeDL.getInstance().updateYoutubeDL(context.applicationContext, YoutubeDL.UpdateChannel.NIGHTLY)
+                runUpdate(context.applicationContext)
                 prefs.edit().putLong("last_update", now).apply()
             } catch (e: Throwable) {
                 Log.w(TAG, "yt-dlp update failed: ${e.javaClass.simpleName}")
             }
         }
+    }
+
+    /** Calls updateYoutubeDL(context, NIGHTLY) by reflection, so the build does not depend on the library's channel type name. */
+    private fun runUpdate(app: Context) {
+        val ydl = YoutubeDL.getInstance()
+        val methods = ydl.javaClass.methods.filter { it.name == "updateYoutubeDL" }
+        val two = methods.firstOrNull { it.parameterTypes.size == 2 }
+        if (two == null) {
+            methods.firstOrNull { it.parameterTypes.size == 1 }?.invoke(ydl, app)
+            return
+        }
+        val type = two.parameterTypes[1]
+        val channel: Any? = type.enumConstants?.firstOrNull { (it as Enum<*>).name == "NIGHTLY" }
+            ?: runCatching { Class.forName(type.name + "\$NIGHTLY").getField("INSTANCE").get(null) }.getOrNull()
+            ?: runCatching { type.getField("NIGHTLY").get(null) }.getOrNull()
+        two.invoke(ydl, app, channel)
     }
 
     private fun baseRequest(url: String) = YoutubeDLRequest(url).apply {
@@ -172,7 +188,7 @@ object YtDlp {
         e.resId == R.string.err_video_unavailable || e.resId == R.string.err_post_without_video
 
     /** Turns the yt-dlp error text into a clear message instead of a generic failure. */
-    fun mapError(e: Throwable): Exception {
+    fun mapError(e: Throwable): LocalizedException {
         if (e is LocalizedException) return e
         val text = (e.message ?: "").lowercase()
         fun has(vararg parts: String) = parts.any { text.contains(it) }
