@@ -21,6 +21,7 @@ import dev.sumanth.spd.R
 import dev.sumanth.spd.utils.LocaleHelper
 import dev.sumanth.spd.utils.LocalizedException
 import dev.sumanth.spd.utils.SocialVideoExtractor
+import dev.sumanth.spd.utils.YtDlp
 import dev.sumanth.spd.utils.SpotifyScraper
 import dev.sumanth.spd.utils.YoutubeScraper
 import kotlinx.coroutines.CancellationException
@@ -45,7 +46,6 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         set(value) { DownloadState.appStatus = value }
         
     var spotifyLink by mutableStateOf("")
-    var convertToMp3 by mutableStateOf(false)
 
     // New home flow: platform -> (YouTube only) Video / Music -> link (+ format for music)
     var platform by mutableStateOf<Platform?>(null)
@@ -95,7 +95,13 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
                     DownloadState.playlistName = youtubeResult.name
                 } else if (currentPlatform in SOCIAL_PLATFORMS) {
                     val track = withContext(Dispatchers.IO) {
-                        SocialVideoExtractor.extract(spotifyLink, currentPlatform)
+                        val app = getApplication<Application>()
+                        if (currentPlatform != Platform.KWAI && YtDlp.isReady(app)) {
+                            // TikTok / Instagram / Facebook: yt-dlp (kept up to date by its community)
+                            YtDlp.resolveTrack(app, spotifyLink, currentPlatform)
+                        } else {
+                            SocialVideoExtractor.extract(spotifyLink, currentPlatform)
+                        }
                     }
                     totalTracksToScrape = 1
                     tracks.clear()
@@ -179,7 +185,8 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     private fun effectiveConvertToMp3(): Boolean = when (platform) {
         Platform.YOUTUBE -> contentType == ContentType.MUSIC && audioFormat == AudioFormat.MP3
         Platform.TIKTOK, Platform.KWAI, Platform.INSTAGRAM, Platform.FACEBOOK -> false
-        else -> convertToMp3
+        // Spotify uses the same MP3 / M4A choice as YouTube Music
+        else -> audioFormat == AudioFormat.MP3
     }
 
     fun selectPlatform(selected: Platform) {

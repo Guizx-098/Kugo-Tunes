@@ -1,9 +1,8 @@
 <resources>
     <string name="nav_home">Início</string>
     <string name="nav_preferences">Preferências</string>
-    <string name="link_label">Link do Spotify / YouTube</string>
+    <string name="link_label">Cole o link do Spotify aqui</string>
     <string name="playlist_details">Detalhes da playlist</string>
-    <string name="convert_to_mp3">Converter para MP3</string>
     <string name="scrape_playlist">Carregar playlist</string>
     <string name="scraping_progress">Carregando (%1$d/%2$d)</string>
     <string name="scraping">Carregando...</string>
@@ -143,4 +142,5 @@
     <string name="err_tiktok_photo">Esta publicação do TikTok é um carrossel de fotos, não um vídeo.</string>
     <string name="err_extraction_failed">Não foi possível ler os dados do vídeo na página. A plataforma pode ter mudado a página ou bloqueado esta requisição.</string>
     <string name="err_post_without_video">Esta publicação não parece conter um vídeo que possa ser baixado.</string>
+    <string name="err_download_generic">Não foi possível baixar este arquivo. Tente novamente.</string>
 </resources>

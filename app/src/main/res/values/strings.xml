@@ -3,9 +3,8 @@
     <string name="update_url" translatable="false">https://github.com/Guizx-098/spd-turbo/releases/latest</string>
     <string name="nav_home">Home</string>
     <string name="nav_preferences">Preferences</string>
-    <string name="link_label">Spotify / YouTube Link</string>
+    <string name="link_label">Paste the Spotify link here</string>
     <string name="playlist_details">Playlist Details</string>
-    <string name="convert_to_mp3">Convert to MP3</string>
     <string name="scrape_playlist">Scrape Playlist</string>
     <string name="scraping_progress">Scraping (%1$d/%2$d)</string>
     <string name="scraping">Scraping...</string>
@@ -145,4 +144,5 @@
     <string name="err_tiktok_photo">This TikTok post is a photo slideshow, not a video.</string>
     <string name="err_extraction_failed">Could not read the video data from the page. The platform may have changed its page or blocked this request.</string>
     <string name="err_post_without_video">This post does not seem to contain a video that can be downloaded.</string>
+    <string name="err_download_generic">Could not download this file. Try again.</string>
 </resources>

@@ -15,8 +15,20 @@ android {
         applicationId = "dev.sumanth.spd"
         minSdk = 24
         targetSdk = 36
-        versionCode = 41
-        versionName = "2.3.2"
+        versionCode = 42
+        versionName = "2.5.0"
+        // yt-dlp + ffmpeg are bundled per CPU type: phones only (no emulator x86) keeps the APK smaller
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // yt-dlp's Python runtime is unpacked from native libs at first launch
+            useLegacyPackaging = true
+            pickFirsts += "**/libc++_shared.so"
+        }
     }
 
     signingConfigs {
@@ -64,5 +76,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("com.github.teamnewpipe:NewPipeExtractor:v0.26.5")
     implementation("com.arthenica:smart-exception-java:0.2.1")
+    // yt-dlp for Android (GPL-3.0): TikTok, Instagram Reels and Facebook extraction
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 }

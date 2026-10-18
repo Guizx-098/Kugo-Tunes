@@ -307,6 +307,15 @@ fun TrackItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (track.status == DownloadStatus.FAILED && !track.error.isNullOrBlank()) {
+                Text(
+                    text = track.error,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             if (track.audioOptions.size > 1) {
                 Text(
                     text = stringResource(R.string.choose_audio_track),

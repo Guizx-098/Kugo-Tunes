@@ -39,6 +39,8 @@ import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
 fun Idle(viewModel: HomeScreenViewModel) {
     val platform = viewModel.platform ?: Platform.SPOTIFY
     val isMusic = platform == Platform.YOUTUBE && viewModel.contentType == ContentType.MUSIC
+    // Spotify downloads audio too: it uses the same MP3 / M4A choice as YouTube Music
+    val showFormat = isMusic || platform == Platform.SPOTIFY
 
     BackHandler(enabled = viewModel.platform != null) { viewModel.back() }
 
@@ -84,18 +86,7 @@ fun Idle(viewModel: HomeScreenViewModel) {
                 )
 
                 when {
-                    platform == Platform.SPOTIFY -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(stringResource(R.string.convert_to_mp3), style = MaterialTheme.typography.bodyLarge)
-                            Switch(checked = viewModel.convertToMp3, onCheckedChange = { viewModel.convertToMp3 = it })
-                        }
-                    }
-
-                    isMusic -> {
+                    showFormat -> {
                         Text(stringResource(R.string.choose_format), style = MaterialTheme.typography.bodyLarge)
                         Row(
                             modifier = Modifier.fillMaxWidth(),

@@ -185,37 +185,50 @@ object DownloadManager {
 
             onStage(DownloadStatus.PROCESSING)
 
-            // Copy to SAF
-            val folderUri = folderUriString.toUri()
-            var pickedDir = DocumentFile.fromTreeUri(context, folderUri)
-                ?: throw IOException("Failed to get document from tree URI")
-
-            if (createSubfolder && !playlistName.isNullOrBlank()) {
-                val sanitizedPlaylistName = sanitizeFilename(playlistName)
-                var subDir = pickedDir.findFile(sanitizedPlaylistName)
-                if (subDir == null || !subDir.isDirectory) {
-                    subDir = pickedDir.createDirectory(sanitizedPlaylistName)
-                }
-                if (subDir != null) {
-                    pickedDir = subDir
-                }
-            }
-
             val mime = if (!isVideo) "audio/*" else if (extension == "webm") "video/webm" else "video/mp4"
-            val newFile = pickedDir.createFile(mime, "$fileName.$finalExtension")
-                ?: pickedDir.findFile("$fileName.$finalExtension")
-                ?: throw IOException("Failed to create file in selected folder")
-
-            val output = context.contentResolver.openOutputStream(newFile.uri)
-                ?: throw IOException("Failed to open output file")
-            output.use { out ->
-                processedFile.inputStream().use { input ->
-                    input.copyTo(out, BUFFER_SIZE)
-                }
-            }
+            saveToFolder(context, processedFile, folderUriString, createSubfolder, playlistName, fileName, finalExtension, mime)
         } finally {
             // Removes every intermediate file of this task (including after failure/cancel)
             context.cacheDir.listFiles { f -> f.name.startsWith("spd_$uid") }?.forEach { it.delete() }
+        }
+    }
+
+    /** Copies [file] into the folder chosen by the user (Storage Access Framework), optionally inside a playlist subfolder. */
+    fun saveToFolder(
+        context: Context,
+        file: File,
+        folderUriString: String,
+        createSubfolder: Boolean,
+        playlistName: String?,
+        fileName: String,
+        extension: String,
+        mime: String
+    ) {
+        val folderUri = folderUriString.toUri()
+        var pickedDir = DocumentFile.fromTreeUri(context, folderUri)
+            ?: throw IOException("Failed to get document from tree URI")
+
+        if (createSubfolder && !playlistName.isNullOrBlank()) {
+            val sanitizedPlaylistName = sanitizeFilename(playlistName)
+            var subDir = pickedDir.findFile(sanitizedPlaylistName)
+            if (subDir == null || !subDir.isDirectory) {
+                subDir = pickedDir.createDirectory(sanitizedPlaylistName)
+            }
+            if (subDir != null) {
+                pickedDir = subDir
+            }
+        }
+
+        val newFile = pickedDir.createFile(mime, "$fileName.$extension")
+            ?: pickedDir.findFile("$fileName.$extension")
+            ?: throw IOException("Failed to create file in selected folder")
+
+        val output = context.contentResolver.openOutputStream(newFile.uri)
+            ?: throw IOException("Failed to open output file")
+        output.use { out ->
+            file.inputStream().use { input ->
+                input.copyTo(out, BUFFER_SIZE)
+            }
         }
     }
 

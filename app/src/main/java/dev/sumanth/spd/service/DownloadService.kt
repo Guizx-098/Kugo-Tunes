@@ -17,6 +17,8 @@ import dev.sumanth.spd.utils.DownloadManager
 import dev.sumanth.spd.utils.FileMeta
 import dev.sumanth.spd.utils.SocialVideoExtractor
 import dev.sumanth.spd.utils.LocaleHelper
+import dev.sumanth.spd.utils.LocalizedException
+import dev.sumanth.spd.utils.YtDlp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -132,6 +134,28 @@ class DownloadService : Service() {
         val track = DownloadState.tracks[index]
         setStatus(index, DownloadStatus.DOWNLOADING)
         try {
+            if (track.useYtDlp && track.sourceUrl != null) {
+                // TikTok / Instagram / Facebook: yt-dlp downloads (and joins video + audio when needed), then the file is saved
+                val file = YtDlp.download(this@DownloadService, track.sourceUrl)
+                try {
+                    currentCoroutineContext().ensureActive()
+                    setStatus(index, DownloadStatus.PROCESSING)
+                    val extension = file.extension.ifBlank { "mp4" }
+                    val mime = when (extension) {
+                        "webm" -> "video/webm"
+                        "mkv" -> "video/x-matroska"
+                        else -> "video/mp4"
+                    }
+                    DownloadManager.saveToFolder(
+                        this@DownloadService, file, downloadPath, createSubfolder, playlistName,
+                        DownloadManager.sanitizeFilename(track.title), extension, mime
+                    )
+                } finally {
+                    file.parentFile?.deleteRecursively()
+                }
+                setStatus(index, DownloadStatus.COMPLETE)
+                return
+            }
             val wantVideo = track.isVideo && !convertToMp3
             val fileMeta = when {
                 track.directUrl != null -> FileMeta(
@@ -169,14 +193,22 @@ class DownloadService : Service() {
             currentCoroutineContext().ensureActive()
             if (e is CancellationException) throw e
             e.printStackTrace()
-            setStatus(index, DownloadStatus.FAILED)
+            val reason = if (e is LocalizedException) {
+                LocaleHelper.string(this, e.resId, *e.args.toTypedArray())
+            } else {
+                LocaleHelper.string(this, R.string.err_download_generic)
+            }
+            setStatus(index, DownloadStatus.FAILED, reason)
         }
     }
 
-    private fun setStatus(index: Int, status: DownloadStatus) {
+    private fun setStatus(index: Int, status: DownloadStatus, error: String? = null) {
         synchronized(statusLock) {
             if (index in DownloadState.tracks.indices) {
-                DownloadState.tracks[index] = DownloadState.tracks[index].copy(status = status)
+                DownloadState.tracks[index] = DownloadState.tracks[index].copy(
+                    status = status,
+                    error = if (status == DownloadStatus.FAILED) error else null
+                )
             }
         }
     }

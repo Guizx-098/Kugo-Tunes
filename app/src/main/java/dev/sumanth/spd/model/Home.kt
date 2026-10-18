@@ -31,7 +31,11 @@ data class Track(
     val cookie: String? = null,
     // YouTube: audio tracks offered by the video when the original one could not be identified reliably
     val audioOptions: List<AudioOption> = emptyList(),
-    val audioTrackId: String? = null
+    val audioTrackId: String? = null,
+    // TikTok / Instagram / Facebook: downloaded by yt-dlp from sourceUrl
+    val useYtDlp: Boolean = false,
+    // Why the download failed (shown under the title)
+    val error: String? = null
 )
 
 /** One selectable audio track of a YouTube video (id = YouTube's audio track id). */

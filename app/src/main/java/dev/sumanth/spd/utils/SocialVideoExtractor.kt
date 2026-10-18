@@ -44,18 +44,23 @@ object SocialVideoExtractor {
     private fun firstUrl(input: String): String? =
         Regex("https?://[^\\s]+").find(input)?.value?.trimEnd('.', ',', ';', ')', ']', '"', '\'', '>', '!')
 
-    fun extract(input: String, platform: Platform): Track {
+    /** Checks that the pasted text is a link of the right platform and kind (Reels only for Instagram); returns it clean. */
+    fun prepare(input: String, platform: Platform): String {
         val url = firstUrl(input)
             ?: throw LocalizedException(R.string.err_link_read, fallback = "Unable to read the link.")
         if (!belongsTo(platform, url)) {
             throw LocalizedException(R.string.err_wrong_platform, fallback = "This link does not belong to the selected platform.")
         }
         // Validates the kind of link before any request is made
-        val pageUrl = when (platform) {
+        return when (platform) {
             Platform.INSTAGRAM -> normalizeInstagramReel(url)
             Platform.FACEBOOK -> validateFacebook(url)
             else -> url
         }
+    }
+
+    fun extract(input: String, platform: Platform): Track {
+        val pageUrl = prepare(input, platform)
 
         val store = mutableListOf<Cookie>()
         val jar = object : CookieJar {

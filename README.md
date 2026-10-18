@@ -20,13 +20,13 @@
 ## ✨ Features
 
 - 🧭 **Choose what to download**: the home screen asks "What would you like to download?" with Spotify, YouTube / YouTube Music, TikTok, Kwai, Instagram and Facebook, and adapts the next steps to the platform.
-- 🎵 **Spotify**: playlists straight to the audio flow, no API keys or login. Links shared from the Spotify app are accepted through Android's share menu.
+- 🎵 **Spotify**: playlists straight to the audio flow, no API keys or login, with the same **MP3 / M4A** choice as YouTube Music. Links shared from the Spotify app are accepted through Android's share menu.
 - ▶️ **YouTube / YouTube Music**: choose **Video** or **Music**.
   - **Video**: picks the highest resolution available; when the best quality comes as separate video and audio streams, they are joined locally without re-encoding. Output is MP4 (H.264) or WebM (VP9) depending on the source.
   - **Music**: choose **MP3** or **M4A** (M4A keeps the original audio, MP3 is converted).
   - **Audio track**: the original audio track is preferred over automatic dubs. If a video has several tracks and the original cannot be identified, you choose the track in the queue (single videos).
-- 📱 **TikTok and Kwai (experimental)**: video download from shared links, using the video address the public page provides. These pages are not official APIs and can change or block access, so it may fail; a watermark may be present and cannot be guaranteed to be removed.
-- 📸 **Instagram (Reels only) and Facebook videos (experimental)**: public links only, using the video file the public page provides, without re-encoding. Instagram Stories, private accounts and content that needs a login are not supported and are reported with a clear message. These pages are not official APIs and can change or block access, so it may fail; a watermark-free or maximum-quality file cannot be guaranteed.
+- 📱 **TikTok, Instagram Reels and Facebook videos**: paste a public link and the app downloads it with [yt-dlp](https://github.com/yt-dlp/yt-dlp) (via [youtubedl-android](https://github.com/yausername/youtubedl-android)), the open-source extractor that follows each platform's changes. It asks for the highest quality available (video and audio are joined without re-encoding) and avoids the formats a platform marks as watermarked. Whether a watermark-free file exists depends on the platform and cannot be guaranteed. Only public content: private posts, Stories and anything that needs a login are reported with a clear message.
+- 📱 **Kwai (experimental)**: reads the video address the public page provides; it may fail if Kwai changes or blocks access.
 - 🔙 **Navigation**: after a download finishes (or fails) the back arrow and Android's back button return to the platform list, and *Download Another* starts a new one without restarting the app.
 - ⚡ **Simultaneous downloads (1–4)**: set in Preferences (default 1). Each track runs its own download → convert → finish pipeline, and one failure never stops the others.
 - 🎧 **MP3 conversion**: applied to every track, with a strict check so a track is only "Complete" after the conversion really finished.
@@ -61,7 +61,7 @@
 | :--- | :--- |
 | **UI Framework** | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3) |
 | **Language** | Kotlin |
-| **Audio / video sourcing** | [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) |
+| **Audio / video sourcing** | [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) (YouTube), [yt-dlp](https://github.com/yt-dlp/yt-dlp) via youtubedl-android (TikTok, Instagram, Facebook) |
 | **Media processing** | [FFmpeg Kit](https://github.com/arthenica/ffmpeg-kit) |
 | **HTTP client** | [OkHttp](https://github.com/square/okhttp) |
 | **Updates** | GitHub Releases API + Android PackageInstaller |
@@ -84,18 +84,4 @@ Ideas or bugs? **[Create an issue](https://github.com/Guizx-098/spd-turbo/issues
 
 ## 📜 License
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE).
-
-## Publicar pelo Termux
-
-1. Extraia o ZIP na pasta Downloads do Android.
-2. No Termux, execute:
-
-```bash
-cd ~/storage/downloads
-unzip -o kugo-tunes-2_3_2-source.zip
-cd spd-turbo
-bash publicar.sh
-```
-
-O script envia o conteúdo para o repositório configurado e usa a mensagem de commit `v2.3.2`. O GitHub Actions compila o APK e cria o Release se o workflow e as permissões do repositório estiverem configurados corretamente.
+The original code is under the **MIT License** (see [LICENSE](LICENSE)). The distributed app also bundles GPL-3.0 components (NewPipe Extractor, youtubedl-android) and others: see [NOTICE.md](NOTICE.md).
