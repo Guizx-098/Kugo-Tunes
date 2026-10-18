@@ -19,6 +19,13 @@ import dev.sumanth.spd.utils.SocialVideoExtractor
 import dev.sumanth.spd.utils.LocaleHelper
 import dev.sumanth.spd.utils.LocalizedException
 import dev.sumanth.spd.utils.YtDlp
+import dev.sumanth.spd.utils.TikWm
+import dev.sumanth.spd.utils.DirectFile
+import dev.sumanth.spd.utils.SocialVideoExtractor
+import dev.sumanth.spd.model.Platform
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,7 +75,7 @@ class DownloadService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val path = intent.getStringExtra(EXTRA_DOWNLOAD_PATH) ?: return START_NOT_STICKY
+                val path = intent.getStringExtra(EXTRA_DOWNLOAD_PATH).orEmpty()
                 val convert = intent.getBooleanExtra(EXTRA_CONVERT_TO_MP3, false)
                 val createSubfolder = intent.getBooleanExtra(EXTRA_CREATE_SUBFOLDER, true)
                 val playlistName = intent.getStringExtra(EXTRA_PLAYLIST_NAME)
@@ -136,7 +143,7 @@ class DownloadService : Service() {
         try {
             if (track.useYtDlp && track.sourceUrl != null) {
                 // TikTok / Instagram / Facebook: yt-dlp downloads (and joins video + audio when needed), then the file is saved
-                val file = YtDlp.download(this@DownloadService, track.sourceUrl)
+                val file = obtainSocialFile(track.sourceUrl)
                 try {
                     currentCoroutineContext().ensureActive()
                     setStatus(index, DownloadStatus.PROCESSING)
@@ -199,6 +206,42 @@ class DownloadService : Service() {
                 LocaleHelper.string(this, R.string.err_download_generic)
             }
             setStatus(index, DownloadStatus.FAILED, reason)
+        }
+    }
+
+    /**
+     * yt-dlp first. When it cannot get the video, TikTok falls back to TikWM and Instagram to the public embed page.
+     * Definitive answers (private, removed, wrong link) are not retried elsewhere.
+     */
+    private suspend fun obtainSocialFile(url: String): File {
+        try {
+            return YtDlp.download(this, url)
+        } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (e is CancellationException) throw e
+            if (e is LocalizedException && YtDlp.isDefinitive(e)) throw e
+            val host = android.net.Uri.parse(url).host?.lowercase().orEmpty()
+            try {
+                return when {
+                    host.endsWith("tiktok.com") && TikWm.ENABLED -> TikWm.download(this, url)
+                    host.endsWith("instagram.com") || host == "instagr.am" -> {
+                        val alt = withContext(Dispatchers.IO) { SocialVideoExtractor.extract(url, Platform.INSTAGRAM) }
+                        DirectFile.download(
+                            this, alt.directUrl ?: throw e,
+                            buildMap {
+                                put("User-Agent", alt.userAgent ?: SocialVideoExtractor.USER_AGENT)
+                                alt.referer?.let { put("Referer", it) }
+                                alt.cookie?.let { put("Cookie", it) }
+                            }
+                        )
+                    }
+                    else -> throw e
+                }
+            } catch (e2: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (e2 is CancellationException) throw e2
+                throw e
+            }
         }
     }
 

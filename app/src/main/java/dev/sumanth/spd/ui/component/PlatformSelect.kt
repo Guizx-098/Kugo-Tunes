@@ -4,6 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -49,52 +52,61 @@ fun PlatformSelect(viewModel: HomeScreenViewModel) {
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             ChoiceCard(
                 icon = Icons.Filled.MusicNote,
                 title = stringResource(R.string.platform_spotify),
                 description = stringResource(R.string.platform_desc_music),
                 onClick = { viewModel.selectPlatform(Platform.SPOTIFY) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).fillMaxHeight()
             )
             ChoiceCard(
                 icon = Icons.Filled.PlayCircle,
                 title = stringResource(R.string.platform_youtube),
                 description = stringResource(R.string.platform_desc_video_music),
                 onClick = { viewModel.selectPlatform(Platform.YOUTUBE) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).fillMaxHeight()
             )
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             ChoiceCard(
                 icon = Icons.Filled.Movie,
                 title = stringResource(R.string.platform_tiktok),
                 description = stringResource(R.string.platform_desc_video),
                 onClick = { viewModel.selectPlatform(Platform.TIKTOK) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).fillMaxHeight()
             )
             ChoiceCard(
                 icon = Icons.Filled.Videocam,
                 title = stringResource(R.string.platform_kwai),
                 description = stringResource(R.string.platform_desc_video),
                 onClick = { viewModel.selectPlatform(Platform.KWAI) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).fillMaxHeight()
             )
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             ChoiceCard(
                 icon = Icons.Filled.PhotoCamera,
                 title = stringResource(R.string.platform_instagram),
                 description = stringResource(R.string.platform_desc_reels),
                 onClick = { viewModel.selectPlatform(Platform.INSTAGRAM) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).fillMaxHeight()
             )
             ChoiceCard(
                 icon = Icons.Filled.ThumbUp,
                 title = stringResource(R.string.platform_facebook),
                 description = stringResource(R.string.platform_desc_video),
                 onClick = { viewModel.selectPlatform(Platform.FACEBOOK) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).fillMaxHeight()
             )
         }
     }
@@ -148,9 +160,9 @@ private fun ChoiceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(onClick = onClick, modifier = modifier.heightIn(min = 140.dp)) {
+    Card(onClick = onClick, modifier = modifier.heightIn(min = 184.dp)) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
         ) {

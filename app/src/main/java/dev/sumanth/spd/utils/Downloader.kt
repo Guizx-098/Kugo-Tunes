@@ -193,7 +193,7 @@ object DownloadManager {
         }
     }
 
-    /** Copies [file] into the folder chosen by the user (Storage Access Framework), optionally inside a playlist subfolder. */
+    /** Saves [file] (default Download/Kugo Tunes or the folder chosen by the user), inside the folder of the source platform. */
     fun saveToFolder(
         context: Context,
         file: File,
@@ -204,32 +204,11 @@ object DownloadManager {
         extension: String,
         mime: String
     ) {
-        val folderUri = folderUriString.toUri()
-        var pickedDir = DocumentFile.fromTreeUri(context, folderUri)
-            ?: throw IOException("Failed to get document from tree URI")
-
-        if (createSubfolder && !playlistName.isNullOrBlank()) {
-            val sanitizedPlaylistName = sanitizeFilename(playlistName)
-            var subDir = pickedDir.findFile(sanitizedPlaylistName)
-            if (subDir == null || !subDir.isDirectory) {
-                subDir = pickedDir.createDirectory(sanitizedPlaylistName)
-            }
-            if (subDir != null) {
-                pickedDir = subDir
-            }
-        }
-
-        val newFile = pickedDir.createFile(mime, "$fileName.$extension")
-            ?: pickedDir.findFile("$fileName.$extension")
-            ?: throw IOException("Failed to create file in selected folder")
-
-        val output = context.contentResolver.openOutputStream(newFile.uri)
-            ?: throw IOException("Failed to open output file")
-        output.use { out ->
-            file.inputStream().use { input ->
-                input.copyTo(out, BUFFER_SIZE)
-            }
-        }
+        StorageManager.save(
+            context, file, folderUriString.ifBlank { null },
+            dev.sumanth.spd.service.DownloadState.platformFolder,
+            playlistName, createSubfolder, fileName, extension
+        )
     }
 
     /** Downloads [url] into [target]; stops quickly when the coroutine is cancelled. */

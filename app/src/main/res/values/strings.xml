@@ -27,7 +27,6 @@
     <string name="general_settings">General Settings</string>
     <string name="download_location">Download Location</string>
     <string name="tap_to_change">Tap to change folder</string>
-    <string name="no_folder">No folder selected</string>
     <string name="subfolder_title">Create subfolder per playlist</string>
     <string name="subfolder_desc">Download tracks into a dedicated folder</string>
     <string name="concurrent_title">Simultaneous downloads</string>
@@ -49,7 +48,6 @@
     <string name="toast_scrape_failed">Scraping failed: %1$s</string>
     <string name="toast_playlist_empty">Playlist is empty.</string>
     <string name="toast_no_selection">No tracks selected.</string>
-    <string name="toast_select_folder">Please select a download folder in Preferences.</string>
     <string name="err_single_track">Single track download is not supported. Please use a playlist link.</string>
     <string name="err_album">Album download is not supported. Please use a playlist link.</string>
     <string name="err_artist">Artist download is not supported. Please use a playlist link.</string>
@@ -145,4 +143,12 @@
     <string name="err_extraction_failed">Could not read the video data from the page. The platform may have changed its page or blocked this request.</string>
     <string name="err_post_without_video">This post does not seem to contain a video that can be downloaded.</string>
     <string name="err_download_generic">Could not download this file. Try again.</string>
+    <string name="default_folder">Download/Kugo Tunes (default)</string>
+    <string name="use_default_folder">Use the default folder</string>
+    <string name="folder_lost_hint">This folder is no longer accessible. Choose another folder or use the default one.</string>
+    <string name="toast_folder_lost">The chosen download folder is no longer accessible. Choose another one in Preferences.</string>
+    <string name="err_storage_permission">No permission to save in this folder. Choose another folder in Preferences.</string>
+    <string name="err_no_space">Not enough storage space on the device.</string>
+    <string name="err_folder_inaccessible">The chosen folder is not accessible. Choose another folder in Preferences.</string>
+    <string name="err_cannot_create_folder">Android does not allow creating the folder "%1$s" here. Choose another folder in Preferences.</string>
 </resources>

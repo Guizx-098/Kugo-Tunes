@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -62,6 +63,9 @@ fun PreferencesScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val displayPath = remember(viewModel.downloadPath) { viewModel.getDisplayPath() }
+    val folderLost = remember(viewModel.downloadPath) {
+        viewModel.downloadPath != null && !viewModel.sharedPref.isCustomFolderAccessible()
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -86,7 +90,7 @@ fun PreferencesScreen(
             ) {
                 Text(stringResource(R.string.download_location), style = MaterialTheme.typography.labelLarge)
                 Text(
-                    text = displayPath ?: stringResource(R.string.no_folder),
+                    text = displayPath ?: stringResource(R.string.default_folder),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -95,6 +99,18 @@ fun PreferencesScreen(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
+                if (viewModel.downloadPath != null) {
+                    if (folderLost) {
+                        Text(
+                            text = stringResource(R.string.folder_lost_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    TextButton(onClick = { viewModel.useDefaultFolder() }) {
+                        Text(stringResource(R.string.use_default_folder))
+                    }
+                }
             }
         }
 

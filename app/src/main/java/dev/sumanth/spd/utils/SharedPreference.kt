@@ -14,21 +14,24 @@ class SharedPref(context: Context) {
         Context.MODE_PRIVATE
     )
 
-    fun getDownloadPath(): String? {
-        val path = sharedPref.getString(KEY_DOWNLOAD_PATH, null) ?: return null
-        try {
+    /** Folder chosen by the user, or null when the default folder (Download/Kugo Tunes) is used. */
+    fun getDownloadPath(): String? = sharedPref.getString(KEY_DOWNLOAD_PATH, null)
+
+    /** False when the chosen folder lost its permission or was removed: the user must pick another one. */
+    fun isCustomFolderAccessible(): Boolean {
+        val path = getDownloadPath() ?: return true
+        return try {
             val uri = path.toUri()
-            val hasPermission = context.contentResolver.persistedUriPermissions.any {
-                it.uri == uri && (it.isWritePermission || it.isReadPermission)
-            }
-            if (!hasPermission) {
-                sharedPref.edit { remove(KEY_DOWNLOAD_PATH) }
-                return null
+            context.contentResolver.persistedUriPermissions.any {
+                it.uri == uri && it.isWritePermission
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            false
         }
-        return path
+    }
+
+    fun clearDownloadPath() {
+        sharedPref.edit { remove(KEY_DOWNLOAD_PATH) }
     }
 
     fun storeDownloadPath(path: String) {

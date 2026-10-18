@@ -12,6 +12,7 @@ The distributed app bundles these components, each under its own license:
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Unlicense (public domain) |
 | Python (bundled by youtubedl-android) | PSF License |
 | [FFmpeg Kit](https://github.com/arthenica/ffmpeg-kit) (audio package) and FFmpeg | LGPL-3.0 / GPL (depending on build) |
+| [TikWM](https://www.tikwm.com) (third-party web service, last-resort TikTok source) | Not bundled: external service with its own terms |
 | [OkHttp](https://github.com/square/okhttp), AndroidX, Jetpack Compose | Apache-2.0 |
 
 Because the app includes GPL-3.0 components, the combined app is distributed under the terms of the

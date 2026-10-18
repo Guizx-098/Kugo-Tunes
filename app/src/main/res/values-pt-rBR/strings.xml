@@ -25,7 +25,6 @@
     <string name="general_settings">Configurações gerais</string>
     <string name="download_location">Local de download</string>
     <string name="tap_to_change">Toque para alterar a pasta</string>
-    <string name="no_folder">Nenhuma pasta selecionada</string>
     <string name="subfolder_title">Criar subpasta por playlist</string>
     <string name="subfolder_desc">Baixar as faixas em uma pasta dedicada</string>
     <string name="concurrent_title">Downloads simultâneos</string>
@@ -47,7 +46,6 @@
     <string name="toast_scrape_failed">Falha ao carregar: %1$s</string>
     <string name="toast_playlist_empty">A playlist está vazia.</string>
     <string name="toast_no_selection">Nenhuma faixa selecionada.</string>
-    <string name="toast_select_folder">Selecione uma pasta de download nas Preferências.</string>
     <string name="err_single_track">Download de uma única faixa não é suportado. Use o link de uma playlist.</string>
     <string name="err_album">Download de álbum não é suportado. Use o link de uma playlist.</string>
     <string name="err_artist">Download de artista não é suportado. Use o link de uma playlist.</string>
@@ -143,4 +141,12 @@
     <string name="err_extraction_failed">Não foi possível ler os dados do vídeo na página. A plataforma pode ter mudado a página ou bloqueado esta requisição.</string>
     <string name="err_post_without_video">Esta publicação não parece conter um vídeo que possa ser baixado.</string>
     <string name="err_download_generic">Não foi possível baixar este arquivo. Tente novamente.</string>
+    <string name="default_folder">Download/Kugo Tunes (padrão)</string>
+    <string name="use_default_folder">Usar a pasta padrão</string>
+    <string name="folder_lost_hint">Esta pasta não está mais acessível. Escolha outra pasta ou use a padrão.</string>
+    <string name="toast_folder_lost">A pasta de download escolhida não está mais acessível. Escolha outra em Preferências.</string>
+    <string name="err_storage_permission">Sem permissão para salvar nesta pasta. Escolha outra pasta em Preferências.</string>
+    <string name="err_no_space">Não há espaço de armazenamento suficiente no aparelho.</string>
+    <string name="err_folder_inaccessible">A pasta escolhida não está acessível. Escolha outra pasta em Preferências.</string>
+    <string name="err_cannot_create_folder">O Android não permite criar a pasta "%1$s" aqui. Escolha outra pasta em Preferências.</string>
 </resources>

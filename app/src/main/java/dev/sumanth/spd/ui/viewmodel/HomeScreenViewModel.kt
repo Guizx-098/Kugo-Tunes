@@ -19,6 +19,7 @@ import dev.sumanth.spd.utils.SharedPref
 import dev.sumanth.spd.model.Track
 import dev.sumanth.spd.R
 import dev.sumanth.spd.utils.LocaleHelper
+import dev.sumanth.spd.utils.PlatformFolders
 import dev.sumanth.spd.utils.LocalizedException
 import dev.sumanth.spd.utils.SocialVideoExtractor
 import dev.sumanth.spd.utils.YtDlp
@@ -66,6 +67,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun startScraping() {
         if (spotifyLink.isBlank()) return toast(R.string.toast_invalid_link)
         val currentPlatform = platform ?: Platform.SPOTIFY
+        DownloadState.platformFolder = PlatformFolders.of(currentPlatform, contentType == ContentType.MUSIC)
         if (currentPlatform == Platform.SPOTIFY && spotifyLink.contains("?")) spotifyLink = spotifyLink.split("?")[0]
         
         appStatus = AppStatus.SCRAPING
@@ -137,15 +139,16 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun downloadPlaylist() {
         if (tracks.isEmpty()) return toast(R.string.toast_playlist_empty)
         if (tracks.none { it.isSelected }) return toast(R.string.toast_no_selection)
+        // null = default folder (Download/Kugo Tunes); a chosen folder that became inaccessible is never replaced silently
         val downloadPath = sharedPref.getDownloadPath()
-        if (downloadPath == null) return toast(R.string.toast_select_folder)
+        if (downloadPath != null && !sharedPref.isCustomFolderAccessible()) return toast(R.string.toast_folder_lost)
 
         val createSubfolder = sharedPref.getCreateSubfolder()
         val playlistName = DownloadState.playlistName
 
         val intent = Intent(getApplication(), DownloadService::class.java).apply {
             action = DownloadService.ACTION_START
-            putExtra(DownloadService.EXTRA_DOWNLOAD_PATH, downloadPath)
+            putExtra(DownloadService.EXTRA_DOWNLOAD_PATH, downloadPath.orEmpty())
             putExtra(DownloadService.EXTRA_CONVERT_TO_MP3, effectiveConvertToMp3())
             putExtra(DownloadService.EXTRA_CREATE_SUBFOLDER, createSubfolder)
             putExtra(DownloadService.EXTRA_PLAYLIST_NAME, playlistName)

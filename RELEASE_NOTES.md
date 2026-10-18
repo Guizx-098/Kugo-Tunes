@@ -1,19 +1,15 @@
-## Kugo Tunes 2.5.0
+## Kugo Tunes 2.6.0
 
 **Download:** `Kugo-Tunes.apk` (below, under *Assets*). Open it on your Android phone to install or update.
 
 ### What's new
-- TikTok, Instagram Reels and Facebook videos now use yt-dlp, the open-source extractor that follows each platform's changes. Highest quality available (video and audio joined without re-encoding), avoiding formats marked as watermarked. A watermark-free file depends on the platform and cannot be guaranteed. Private content is reported with a clear message
-- Spotify: the home screen of Spotify now only asks for the Spotify link and uses the same **MP3 / M4A** choice as YouTube Music (the old "Convert to MP3" switch is gone)
-- Failed downloads now show the reason under the title
-- The app is larger because it bundles yt-dlp and Python (phones only: arm64 and armv7)
-
-> Releases keep the same signing key, so this installs over the previous version.
+- Downloads work from the first use: files are saved in `Download/Kugo Tunes/` with one folder per platform (Spotify, YouTube, YouTube Music, Facebook, Instagram, TikTok, Kwai). You can still choose another folder in Preferences, and go back to the default one
+- TikTok and Instagram: yt-dlp is now updated automatically from its official nightly channel, and there are fallbacks when it cannot read a video (TikTok: TikWM service, Instagram: public embed page). Only public content
+- All platform cards on the home screen now have the same size
+- Clear messages for full storage, missing folder permission or a folder where Android does not allow creating subfolders
 
 ### Novidades (pt-BR)
-- TikTok, Reels do Instagram e vídeos do Facebook agora usam o yt-dlp, o extrator de código aberto que acompanha as mudanças de cada plataforma. Maior qualidade disponível (vídeo e áudio unidos sem recodificar), evitando formatos marcados com marca d'água. Um arquivo sem marca d'água depende da plataforma e não pode ser garantido. Conteúdo privado mostra uma mensagem clara
-- Spotify: a tela do Spotify agora pede só o link do Spotify e usa a mesma escolha **MP3 / M4A** do YouTube Music (o botão "Converter para MP3" foi removido)
-- Downloads que falham agora mostram o motivo abaixo do título
-- O app ficou maior porque inclui o yt-dlp e o Python (só celulares: arm64 e armv7)
-
-> As versões mantêm a mesma chave de assinatura, então esta instala por cima da anterior.
+- Os downloads funcionam desde o primeiro uso: os arquivos vão para `Download/Kugo Tunes/` com uma pasta por plataforma (Spotify, YouTube, YouTube Music, Facebook, Instagram, TikTok, Kwai). Você ainda pode escolher outra pasta em Preferências e voltar para a padrão
+- TikTok e Instagram: o yt-dlp agora é atualizado automaticamente pelo canal oficial nightly, e há alternativas quando ele não consegue ler o vídeo (TikTok: serviço TikWM, Instagram: página pública de incorporação). Só conteúdo público
+- Todos os cards de plataformas da tela inicial agora têm o mesmo tamanho
+- Mensagens claras para armazenamento cheio, falta de permissão na pasta ou pasta onde o Android não permite criar subpastas

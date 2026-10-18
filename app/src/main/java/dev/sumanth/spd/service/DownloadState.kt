@@ -12,5 +12,7 @@ object DownloadState {
     var appStatus by mutableStateOf(AppStatus.IDLE)
     var currentTrackIndex by mutableIntStateOf(-1)
     var playlistName by mutableStateOf("")
+    // Folder of the source platform inside the download folder (Spotify, YouTube, TikTok...)
+    var platformFolder = dev.sumanth.spd.utils.PlatformFolders.OTHER
     val tracks = mutableStateListOf<Track>()
 }

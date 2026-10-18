@@ -1,6 +1,8 @@
 package dev.sumanth.spd
 
 import dev.sumanth.spd.utils.LocaleHelper
+import dev.sumanth.spd.utils.StorageManager
+import dev.sumanth.spd.utils.YtDlp
 import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.Manifest
@@ -68,6 +70,16 @@ class MainActivity : ComponentActivity() {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+
+        // Default destination Download/Kugo Tunes (needs no choice from the user)
+        Thread { StorageManager.prepareDefaultFolder() }.start()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        // Keeps yt-dlp current: TikTok / Instagram change often (at most every 12 hours)
+        Thread { YtDlp.updateIfNeeded(applicationContext) }.start()
 
         val sharedPref = SharedPref(this)
         if (savedInstanceState == null && sharedPref.getAutoUpdateCheck()) {

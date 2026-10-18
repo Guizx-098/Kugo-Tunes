@@ -48,7 +48,13 @@ class PreferencesScreenViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
-    /** Readable folder path, or null when no folder was chosen yet. */
+    /** Back to Download/Kugo Tunes. */
+    fun useDefaultFolder() {
+        sharedPref.clearDownloadPath()
+        downloadPath = null
+    }
+
+    /** Readable folder path, or null when the default folder is used. */
     fun getDisplayPath(): String? {
         val current = downloadPath ?: return null
         val path = Uri.parse(current).path ?: return current

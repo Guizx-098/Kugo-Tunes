@@ -30,6 +30,8 @@ object YtDlp {
     private const val FORMAT = "bv*[vcodec^=avc]+ba[ext=m4a]/bv*[vcodec^=avc]+ba/bv*+ba/b"
 
     private val lock = Any()
+    private val updateLock = Any()
+    private const val UPDATE_EVERY_MS = 12L * 60 * 60 * 1000
     @Volatile private var ready = false
     @Volatile private var failed = false
 
@@ -59,6 +61,25 @@ object YtDlp {
         }
     }
 
+    /**
+     * yt-dlp fixes TikTok / Instagram almost every week and the copy bundled in the app gets old, so it is updated
+     * from the official nightly channel (at most every 12 hours, or right away when [force] is true).
+     */
+    fun updateIfNeeded(context: Context, force: Boolean = false) {
+        if (!isReady(context)) return
+        val prefs = context.applicationContext.getSharedPreferences("ytdlp_update", Context.MODE_PRIVATE)
+        synchronized(updateLock) {
+            val now = System.currentTimeMillis()
+            if (!force && now - prefs.getLong("last_update", 0L) < UPDATE_EVERY_MS) return
+            try {
+                YoutubeDL.getInstance().updateYoutubeDL(context.applicationContext, YoutubeDL.UpdateChannel.NIGHTLY)
+                prefs.edit().putLong("last_update", now).apply()
+            } catch (e: Throwable) {
+                Log.w(TAG, "yt-dlp update failed: ${e.javaClass.simpleName}")
+            }
+        }
+    }
+
     private fun baseRequest(url: String) = YoutubeDLRequest(url).apply {
         addOption("--no-playlist")
         addOption("--no-warnings")
@@ -69,23 +90,26 @@ object YtDlp {
     /** Validates the link, reads the title and thumbnail, and returns the task to download. */
     fun resolveTrack(context: Context, input: String, platform: Platform): Track {
         val pageUrl = SocialVideoExtractor.prepare(input, platform)
-        val info = try {
-            YoutubeDL.getInstance().getInfo(baseRequest(pageUrl))
-        } catch (e: Exception) {
-            Log.w(TAG, "info failed for $platform: ${e.message?.take(300)}")
-            throw mapError(e)
-        }
         val name = when (platform) {
             Platform.TIKTOK -> "TikTok"
             Platform.INSTAGRAM -> "Instagram Reel"
             else -> "Facebook video"
         }
-        val title = (info.title ?: "").replace(Regex("\\s+"), " ").trim().take(80).ifBlank { name }
+        if (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM) updateIfNeeded(context)
+        val info = try {
+            YoutubeDL.getInstance().getInfo(baseRequest(pageUrl))
+        } catch (e: Exception) {
+            Log.w(TAG, "info failed for $platform: ${e.message?.take(300)}")
+            val mapped = mapError(e)
+            // TikTok / Instagram: only definitive answers stop here; otherwise the download tries the other sources
+            if ((platform == Platform.TIKTOK || platform == Platform.INSTAGRAM) && !isDefinitive(mapped)) null else throw mapped
+        }
+        val title = (info?.title ?: "").replace(Regex("\\s+"), " ").trim().take(80).ifBlank { name }
         return Track(
             title = title,
             artist = "",
             status = DownloadStatus.IDLE,
-            imageUrl = info.thumbnail,
+            imageUrl = info?.thumbnail,
             isVideo = true,
             sourceUrl = pageUrl,
             useYtDlp = true
@@ -96,7 +120,18 @@ object YtDlp {
      * Downloads the video of [url] into a private temp folder and returns the file. The caller copies it to the
      * chosen folder and deletes `file.parentFile`. Cancelling the coroutine stops the yt-dlp process.
      */
-    suspend fun download(context: Context, url: String): File = withContext(Dispatchers.IO) {
+    suspend fun download(context: Context, url: String): File {
+        try {
+            return downloadOnce(context, url)
+        } catch (e: LocalizedException) {
+            if (e.resId != R.string.err_extraction_failed) throw e
+            // "could not read the video" usually means the bundled extractor is outdated: update and try once more
+            withContext(Dispatchers.IO) { updateIfNeeded(context, force = true) }
+            return downloadOnce(context, url)
+        }
+    }
+
+    private suspend fun downloadOnce(context: Context, url: String): File = withContext(Dispatchers.IO) {
         if (!isReady(context)) {
             throw LocalizedException(R.string.err_extraction_failed, fallback = "Could not start the download engine.")
         }
@@ -131,6 +166,10 @@ object YtDlp {
         }
         file
     }
+
+    /** Answers that no other source can change (wrong link, removed or private video, post without video). */
+    fun isDefinitive(e: LocalizedException): Boolean = e.resId == R.string.err_wrong_platform ||
+        e.resId == R.string.err_video_unavailable || e.resId == R.string.err_post_without_video
 
     /** Turns the yt-dlp error text into a clear message instead of a generic failure. */
     fun mapError(e: Throwable): Exception {
