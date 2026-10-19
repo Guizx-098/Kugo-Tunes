@@ -78,8 +78,6 @@ class MainActivity : ComponentActivity() {
         ) {
             requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
-        // Keeps yt-dlp current: TikTok / Instagram change often (at most every 12 hours)
-        Thread { YtDlp.updateIfNeeded(applicationContext) }.start()
 
         val sharedPref = SharedPref(this)
         if (savedInstanceState == null && sharedPref.getAutoUpdateCheck()) {

@@ -15,8 +15,8 @@ android {
         applicationId = "dev.sumanth.spd"
         minSdk = 24
         targetSdk = 36
-        versionCode = 45
-        versionName = "2.6.2"
+        versionCode = 46
+        versionName = "2.6.3"
         // yt-dlp + ffmpeg are bundled per CPU type: phones only (no emulator x86) keeps the APK smaller
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
@@ -28,6 +28,13 @@ android {
             // yt-dlp's Python runtime is unpacked from native libs at first launch
             useLegacyPackaging = true
             pickFirsts += "**/libc++_shared.so"
+        }
+        resources {
+            // Only license / notice texts of the libraries (services and other metadata are kept)
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}", "/META-INF/DEPENDENCIES", "/META-INF/LICENSE*",
+                "/META-INF/NOTICE*", "/META-INF/INDEX.LIST"
+            )
         }
     }
 
