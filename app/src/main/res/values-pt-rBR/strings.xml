@@ -62,7 +62,6 @@
     <string name="upd_title_available">Nova atualização disponível</string>
     <string name="upd_current_version">Versão atual:</string>
     <string name="upd_new_version">Nova versão:</string>
-    <string name="upd_release_notes">Notas da versão:</string>
     <string name="upd_btn_download">Baixar APK</string>
     <string name="upd_btn_not_now">Agora não</string>
     <string name="upd_downloading">Baixando atualização...</string>
@@ -149,4 +148,5 @@
     <string name="err_no_space">Não há espaço de armazenamento suficiente no aparelho.</string>
     <string name="err_folder_inaccessible">A pasta escolhida não está acessível. Escolha outra pasta em Preferências.</string>
     <string name="err_cannot_create_folder">O Android não permite criar a pasta "%1$s" aqui. Escolha outra pasta em Preferências.</string>
+    <string name="upd_whats_new">O que há de novo</string>
 </resources>

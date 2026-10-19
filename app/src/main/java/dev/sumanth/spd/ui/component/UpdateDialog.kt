@@ -1,6 +1,29 @@
 package dev.sumanth.spd.ui.component
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import dev.sumanth.spd.utils.NoteBlock
+import dev.sumanth.spd.utils.ReleaseNotes
+import dev.sumanth.spd.utils.SharedPref
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
@@ -27,19 +50,38 @@ fun UpdateDialog(updaterViewModel: UpdaterViewModel) {
                 onDismissRequest = { updaterViewModel.notNow() },
                 title = { Text(stringResource(R.string.upd_title_available)) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column {
-                            Text(stringResource(R.string.upd_current_version), style = MaterialTheme.typography.labelMedium)
-                            Text(updaterViewModel.installedVersion, style = MaterialTheme.typography.bodyLarge)
+                    val language = SharedPref.readLanguage(LocalContext.current)
+                    val blocks = remember(release?.notes, language) { ReleaseNotes.parse(release?.notes.orEmpty(), language) }
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            VersionBox(
+                                label = stringResource(R.string.upd_current_version),
+                                value = updaterViewModel.installedVersion,
+                                highlighted = false,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            VersionBox(
+                                label = stringResource(R.string.upd_new_version),
+                                value = release?.version ?: "",
+                                highlighted = true,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
-                        Column {
-                            Text(stringResource(R.string.upd_new_version), style = MaterialTheme.typography.labelMedium)
-                            Text(release?.version ?: "", style = MaterialTheme.typography.bodyLarge)
-                        }
-                        val notes = release?.notes.orEmpty()
-                        if (notes.isNotBlank()) {
-                            Text(stringResource(R.string.upd_release_notes), style = MaterialTheme.typography.labelMedium)
-                            Text(notes.take(500), style = MaterialTheme.typography.bodySmall)
+                        if (blocks.isNotEmpty()) {
+                            Text(
+                                stringResource(R.string.upd_whats_new),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            ReleaseNotesView(blocks)
                         }
                     }
                 },
@@ -225,4 +267,84 @@ private fun MessageDialog(title: String, message: String?, onClose: () -> Unit) 
             TextButton(onClick = onClose) { Text(stringResource(R.string.upd_ok)) }
         }
     )
+}
+
+
+/** Current / new version as two boxes; the new one is highlighted. */
+@Composable
+private fun VersionBox(label: String, value: String, highlighted: Boolean, modifier: Modifier = Modifier) {
+    val container = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val content = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        modifier = modifier.background(container, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(label.removeSuffix(":"), style = MaterialTheme.typography.labelMedium, color = content)
+        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = content)
+    }
+}
+
+/** The changelog: group titles, bullets and notes instead of raw Markdown. Scrolls when it is long. */
+@Composable
+private fun ReleaseNotesView(blocks: List<NoteBlock>) {
+    val codeBackground = MaterialTheme.colorScheme.surfaceVariant
+    Column(
+        modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        blocks.forEach { block ->
+            when (block) {
+                is NoteBlock.Group -> Text(
+                    text = block.text,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                is NoteBlock.Bullet -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("\u2022", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = styled(block.text, codeBackground),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                is NoteBlock.Quote -> Text(
+                    text = styled(block.text, codeBackground),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                )
+
+                is NoteBlock.Paragraph -> Text(
+                    text = styled(block.text, codeBackground),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+private val inlineMarkdown = Regex("\\*\\*(.+?)\\*\\*|`(.+?)`")
+
+/** **bold** and `code` inside a line. */
+private fun styled(text: String, codeBackground: Color): AnnotatedString = buildAnnotatedString {
+    var last = 0
+    for (match in inlineMarkdown.findAll(text)) {
+        append(text.substring(last, match.range.first))
+        val bold = match.groups[1]?.value
+        val code = match.groups[2]?.value
+        if (bold != null) {
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(bold) }
+        } else if (code != null) {
+            withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = codeBackground)) { append(code) }
+        }
+        last = match.range.last + 1
+    }
+    append(text.substring(last))
 }

@@ -53,7 +53,7 @@ object UpdateChecker {
                 apkUrl = apk?.optString("browser_download_url")?.takeIf { it.isNotBlank() },
                 apkName = apk?.optString("name"),
                 apkSize = apk?.optLong("size", 0L) ?: 0L,
-                notes = json.optString("body", "").trim()
+                notes = json.optString("body", "").trim().take(4000)
             )
         }
     }

@@ -64,7 +64,6 @@
     <string name="upd_title_available">New update available</string>
     <string name="upd_current_version">Current version:</string>
     <string name="upd_new_version">New version:</string>
-    <string name="upd_release_notes">Release notes:</string>
     <string name="upd_btn_download">Download APK</string>
     <string name="upd_btn_not_now">Not now</string>
     <string name="upd_downloading">Downloading update...</string>
@@ -151,4 +150,5 @@
     <string name="err_no_space">Not enough storage space on the device.</string>
     <string name="err_folder_inaccessible">The chosen folder is not accessible. Choose another folder in Preferences.</string>
     <string name="err_cannot_create_folder">Android does not allow creating the folder "%1$s" here. Choose another folder in Preferences.</string>
+    <string name="upd_whats_new">What\'s new</string>
 </resources>
