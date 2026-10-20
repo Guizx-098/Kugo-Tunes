@@ -171,6 +171,29 @@ fun PreferencesScreen(
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(stringResource(R.string.wifi_only_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = stringResource(R.string.wifi_only_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.wifiOnly,
+                    onCheckedChange = {
+                        viewModel.wifiOnly = it
+                        viewModel.sharedPref.storeWifiOnly(it)
+                    }
+                )
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

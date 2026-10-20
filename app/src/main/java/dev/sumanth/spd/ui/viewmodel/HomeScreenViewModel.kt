@@ -14,6 +14,8 @@ import dev.sumanth.spd.model.AudioFormat
 import dev.sumanth.spd.model.ContentType
 import dev.sumanth.spd.model.Platform
 import dev.sumanth.spd.service.DownloadService
+import dev.sumanth.spd.service.DownloadSession
+import dev.sumanth.spd.utils.SessionStore
 import dev.sumanth.spd.service.DownloadState
 import dev.sumanth.spd.utils.SharedPref
 import dev.sumanth.spd.model.Track
@@ -59,6 +61,40 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         set(value) { DownloadState.currentTrackIndex = value }
         
     val tracks get() = DownloadState.tracks
+
+    // A supported link found in the clipboard: offered once ("Download this link?")
+    var clipboardSuggestion by mutableStateOf<String?>(null)
+    private var lastClipboardHandled: String? = null
+
+    fun onClipboardText(text: String?) {
+        if (text.isNullOrBlank()) return
+        val url = Regex("https?://\\S+").find(text)?.value ?: return
+        if (url == lastClipboardHandled || url == clipboardSuggestion) return
+        if (detectPlatform(url) == null) return
+        clipboardSuggestion = url
+    }
+
+    fun acceptClipboard() {
+        val url = clipboardSuggestion ?: return
+        lastClipboardHandled = url
+        clipboardSuggestion = null
+        startFromSharedLink(url)
+    }
+
+    fun dismissClipboard() {
+        lastClipboardHandled = clipboardSuggestion
+        clipboardSuggestion = null
+    }
+
+    init {
+        // Lists left unfinished when the app was closed show up as "paused" in the background list
+        viewModelScope.launch(Dispatchers.IO) {
+            val restored = SessionStore.loadAll(getApplication())
+            withContext(Dispatchers.Main) {
+                restored.filter { DownloadState.find(it.id) == null }.forEach { DownloadState.background.add(it) }
+            }
+        }
+    }
 
     private fun toast(resId: Int) {
         Toast.makeText(getApplication(), LocaleHelper.string(getApplication(), resId), Toast.LENGTH_SHORT).show()
@@ -143,18 +179,20 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         val downloadPath = sharedPref.getDownloadPath()
         if (downloadPath != null && !sharedPref.isCustomFolderAccessible()) return toast(R.string.toast_folder_lost)
 
-        val createSubfolder = sharedPref.getCreateSubfolder()
-        val playlistName = DownloadState.playlistName
+        // The session carries everything it needs to run, and to be resumed later (even after the app was closed)
+        val session = DownloadState.foreground
+        session.downloadPath = downloadPath.orEmpty()
+        session.convertToMp3 = effectiveConvertToMp3()
+        session.createSubfolder = sharedPref.getCreateSubfolder()
+        session.concurrency = sharedPref.getConcurrentDownloads()
+        startSessionService(session)
+    }
 
+    private fun startSessionService(session: DownloadSession) {
         val intent = Intent(getApplication(), DownloadService::class.java).apply {
             action = DownloadService.ACTION_START
-            putExtra(DownloadService.EXTRA_DOWNLOAD_PATH, downloadPath.orEmpty())
-            putExtra(DownloadService.EXTRA_CONVERT_TO_MP3, effectiveConvertToMp3())
-            putExtra(DownloadService.EXTRA_CREATE_SUBFOLDER, createSubfolder)
-            putExtra(DownloadService.EXTRA_PLAYLIST_NAME, playlistName)
-            putExtra(DownloadService.EXTRA_CONCURRENT_DOWNLOADS, sharedPref.getConcurrentDownloads())
+            putExtra(DownloadService.EXTRA_SESSION_ID, session.id)
         }
-        
         getApplication<Application>().startService(intent)
     }
 
@@ -171,12 +209,62 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun cancelDownload() {
+    /** Pause: stops the list on screen, keeps what was already downloaded; "Resume" continues with the rest. */
+    fun cancelDownload() = pauseSession(DownloadState.foreground)
+
+    fun pauseSession(session: DownloadSession) {
         val intent = Intent(getApplication(), DownloadService::class.java).apply {
             action = DownloadService.ACTION_STOP
+            putExtra(DownloadService.EXTRA_SESSION_ID, session.id)
         }
         getApplication<Application>().startService(intent)
     }
+
+    fun resumeSession(session: DownloadSession) = startSessionService(session)
+
+    /** Keeps the list downloading in the background and returns to the platform list to start another one. */
+    fun moveToBackground() {
+        val session = DownloadState.foreground
+        if (session.tracks.isNotEmpty()) DownloadState.background.add(session)
+        DownloadState.foreground = DownloadSession()
+        platform = null
+        contentType = null
+        spotifyLink = ""
+    }
+
+    /** Brings a background list to the screen. What was on screen keeps going in the background when it still has work. */
+    fun openBackground(session: DownloadSession) {
+        val current = DownloadState.foreground
+        DownloadState.background.remove(session)
+        val stillHasWork = current.appStatus == AppStatus.DOWNLOADING ||
+            (current.appStatus == AppStatus.SCRAPING_COMPLETE && current.doneCount() > 0 && current.pendingCount() > 0)
+        if (stillHasWork) DownloadState.background.add(current)
+        DownloadState.foreground = session
+        platform = null
+        contentType = null
+        spotifyLink = ""
+    }
+
+    /** Removes a background list (stops it first when it is downloading) and forgets it. */
+    fun removeSession(session: DownloadSession) {
+        session.discarded = true
+        if (session.appStatus == AppStatus.DOWNLOADING) pauseSession(session)
+        DownloadState.background.remove(session)
+        SessionStore.delete(getApplication(), session.id)
+    }
+
+    /** Back from a list that is not downloading: a partly downloaded list is kept in the background, any other is closed. */
+    fun leaveQueue() {
+        val session = DownloadState.foreground
+        if (session.appStatus == AppStatus.SCRAPING_COMPLETE && session.doneCount() > 0 && session.pendingCount() > 0) {
+            moveToBackground()
+        } else {
+            reset()
+        }
+    }
+
+    val waitingFor: Int get() = DownloadState.foreground.waitingFor
+    val backgroundSessions get() = DownloadState.background
 
     fun cancelScraping() {
         scrapingJob?.cancel()
@@ -209,19 +297,28 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         spotifyLink = ""
     }
 
-    /** A link shared from another app already tells which platform to use. */
-    fun startFromSharedLink(url: String) {
+    /** Which platform a link belongs to (null = not a link this app downloads). */
+    fun detectPlatform(url: String): Platform? {
         val link = url.lowercase()
-        when {
-            link.contains("spotify") -> selectPlatform(Platform.SPOTIFY)
-            link.contains("tiktok.com") -> selectPlatform(Platform.TIKTOK)
-            link.contains("kwai") || link.contains("kw.ai") -> selectPlatform(Platform.KWAI)
-            link.contains("instagram.com") -> selectPlatform(Platform.INSTAGRAM)
-            link.contains("facebook.com") || link.contains("fb.watch") || link.contains("fb.com") -> selectPlatform(Platform.FACEBOOK)
-            else -> {
-                selectPlatform(Platform.YOUTUBE)
-                contentType = if (link.contains("music.youtube.com")) ContentType.MUSIC else ContentType.VIDEO
-            }
+        return when {
+            link.contains("spotify") -> Platform.SPOTIFY
+            link.contains("tiktok.com") -> Platform.TIKTOK
+            link.contains("kwai") || link.contains("kw.ai") -> Platform.KWAI
+            link.contains("instagram.com") || link.contains("instagr.am") -> Platform.INSTAGRAM
+            link.contains("facebook.com") || link.contains("fb.watch") || link.contains("fb.com") -> Platform.FACEBOOK
+            link.contains("youtube.com") || link.contains("youtu.be") -> Platform.YOUTUBE
+            else -> null
+        }
+    }
+
+    /** A link copied in another app (or shared to this one) already tells which platform to use. */
+    fun startFromSharedLink(url: String) {
+        val detected = detectPlatform(url)
+        if (detected == null || detected == Platform.YOUTUBE) {
+            selectPlatform(Platform.YOUTUBE)
+            contentType = if (url.lowercase().contains("music.youtube.com")) ContentType.MUSIC else ContentType.VIDEO
+        } else {
+            selectPlatform(detected)
         }
         spotifyLink = url
         startScraping()
@@ -240,6 +337,8 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun reset() {
+        // The list is closed: its saved progress is not needed anymore
+        SessionStore.delete(getApplication(), DownloadState.foreground.id)
         tracks.clear()
         spotifyLink = ""
         appStatus = AppStatus.IDLE

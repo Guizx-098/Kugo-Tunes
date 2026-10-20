@@ -21,6 +21,7 @@ class PreferencesScreenViewModel(application: Application) : AndroidViewModel(ap
     var createSubfolder by mutableStateOf(sharedPref.getCreateSubfolder())
     var concurrentDownloads by mutableIntStateOf(sharedPref.getConcurrentDownloads())
     var language by mutableStateOf(sharedPref.getLanguage())
+    var wifiOnly by mutableStateOf(sharedPref.getWifiOnly())
 
     val developerName = "Guizx-098"
     private val githubUrl = "https://github.com/Guizx-098/spd-turbo"

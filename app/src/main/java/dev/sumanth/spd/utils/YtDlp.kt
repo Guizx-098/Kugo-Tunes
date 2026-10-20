@@ -96,6 +96,32 @@ object YtDlp {
         two.invoke(ydl, app, channel)
     }
 
+    /** execute() with yt-dlp's progress callback (percent of each stream); falls back to a plain execute() if its signature differs. */
+    private fun runWithProgress(request: YoutubeDLRequest, id: String, onProgress: (Float) -> Unit) {
+        val ydl = YoutubeDL.getInstance()
+        val method = ydl.javaClass.methods.firstOrNull {
+            it.name == "execute" && it.parameterTypes.size == 4 && it.parameterTypes[3].name == "kotlin.jvm.functions.Function3"
+        }
+        if (method != null) {
+            var best = 0f
+            val callback: (Float, Long, String) -> Unit = { progress, _, _ ->
+                if (progress > best) {
+                    best = progress
+                    onProgress((progress / 100f).coerceIn(0f, 1f))
+                }
+            }
+            try {
+                method.invoke(ydl, request, id, false, callback)
+                return
+            } catch (e: java.lang.reflect.InvocationTargetException) {
+                throw e.targetException ?: e
+            } catch (e: IllegalArgumentException) {
+                // different parameter order: use the plain call below
+            }
+        }
+        ydl.execute(request = request, processId = id)
+    }
+
     private fun baseRequest(url: String) = YoutubeDLRequest(url).apply {
         addOption("--no-playlist")
         addOption("--no-warnings")
@@ -136,18 +162,18 @@ object YtDlp {
      * Downloads the video of [url] into a private temp folder and returns the file. The caller copies it to the
      * chosen folder and deletes `file.parentFile`. Cancelling the coroutine stops the yt-dlp process.
      */
-    suspend fun download(context: Context, url: String): File {
+    suspend fun download(context: Context, url: String, onProgress: (Float) -> Unit = {}): File {
         try {
-            return downloadOnce(context, url)
+            return downloadOnce(context, url, onProgress)
         } catch (e: LocalizedException) {
             if (e.resId != R.string.err_extraction_failed) throw e
             // "could not read the video" usually means the bundled extractor is outdated: update and try once more
             withContext(Dispatchers.IO) { updateIfNeeded(context, force = true) }
-            return downloadOnce(context, url)
+            return downloadOnce(context, url, onProgress)
         }
     }
 
-    private suspend fun downloadOnce(context: Context, url: String): File = withContext(Dispatchers.IO) {
+    private suspend fun downloadOnce(context: Context, url: String, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
         if (!isReady(context)) {
             throw LocalizedException(R.string.err_extraction_failed, fallback = "Could not start the download engine.")
         }
@@ -164,7 +190,7 @@ object YtDlp {
             if (cause != null) runCatching { YoutubeDL.getInstance().destroyProcessById(id) }
         }
         try {
-            YoutubeDL.getInstance().execute(request = request, processId = id)
+            runWithProgress(request, id, onProgress)
         } catch (e: Exception) {
             dir.deleteRecursively()
             currentCoroutineContext().ensureActive()

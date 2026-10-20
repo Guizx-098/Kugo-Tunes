@@ -30,6 +30,12 @@ class SharedPref(context: Context) {
         }
     }
 
+    fun getWifiOnly(): Boolean = sharedPref.getBoolean(KEY_WIFI_ONLY, false)
+
+    fun storeWifiOnly(value: Boolean) {
+        sharedPref.edit { putBoolean(KEY_WIFI_ONLY, value) }
+    }
+
     fun clearDownloadPath() {
         sharedPref.edit { remove(KEY_DOWNLOAD_PATH) }
     }
@@ -103,6 +109,7 @@ class SharedPref(context: Context) {
         private const val KEY_AUTO_UPDATE_CHECK = "auto_update_check"
         private const val KEY_CREATE_SUBFOLDER = "create_subfolder"
         private const val KEY_CONCURRENT_DOWNLOADS = "concurrent_downloads"
+        private const val KEY_WIFI_ONLY = "wifi_only"
         private const val KEY_LANGUAGE = "language"
         private const val KEY_SKIPPED_UPDATE = "skipped_update_version"
     }

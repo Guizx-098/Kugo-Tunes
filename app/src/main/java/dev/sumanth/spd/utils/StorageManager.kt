@@ -99,6 +99,50 @@ object StorageManager {
         }
     }
 
+    /** Is this file already in its folder? Used when a playlist is resumed after the app was closed. */
+    fun exists(
+        context: Context,
+        customTreeUri: String?,
+        platformFolder: String,
+        playlistName: String?,
+        fileName: String,
+        extensions: List<String>
+    ): Boolean {
+        val folder = DownloadManager.sanitizeFilename(platformFolder)
+        val playlist = playlistName?.takeIf { it.isNotBlank() }?.let { DownloadManager.sanitizeFilename(it) }
+        return when {
+            !customTreeUri.isNullOrBlank() -> {
+                var dir = DocumentFile.fromTreeUri(context, customTreeUri.toUri()) ?: return false
+                dir = dir.findFile(folder)?.takeIf { it.isDirectory } ?: return false
+                if (playlist != null) dir = dir.findFile(playlist)?.takeIf { it.isDirectory } ?: return false
+                extensions.any { dir.findFile("$fileName.$it") != null }
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> existsInMediaStore(context, folder, playlist, fileName, extensions)
+            else -> {
+                var dir = File(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), ROOT), folder)
+                if (playlist != null) dir = File(dir, playlist)
+                extensions.any { File(dir, "$fileName.$it").exists() }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun existsInMediaStore(context: Context, folder: String, playlist: String?, fileName: String, extensions: List<String>): Boolean {
+        val relative = buildString {
+            append(Environment.DIRECTORY_DOWNLOADS).append('/').append(ROOT).append('/').append(folder)
+            if (playlist != null) append('/').append(playlist)
+            append('/')
+        }
+        val names = extensions.map { "$fileName.$it" }
+        val selection = MediaStore.MediaColumns.RELATIVE_PATH + " = ? AND " + MediaStore.MediaColumns.DISPLAY_NAME +
+            " IN (" + names.joinToString(",") { "?" } + ")"
+        val args = arrayOf(relative) + names.toTypedArray()
+        context.contentResolver.query(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI, arrayOf(MediaStore.MediaColumns._ID), selection, args, null
+        )?.use { return it.count > 0 }
+        return false
+    }
+
     private fun saveToTree(
         context: Context, file: File, treeUri: String, folder: String, playlist: String?, fileName: String, extension: String
     ) {

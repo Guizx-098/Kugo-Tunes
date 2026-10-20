@@ -55,6 +55,12 @@ Sem cadastro, sem login e sem configurar nada para começar.
 - 🔄 **Atualização dentro do app**: o Kugo Tunes avisa quando há versão nova, mostra as novidades e instala para você.
 - 🌐 **Português e inglês**: troque o idioma quando quiser.
 - 🌗 **Tema claro e escuro**.
+- 📋 **Link copiado, um toque**: copiou um link? O app oferece baixar na hora, já na plataforma certa.
+- 📊 **Porcentagem em cada item** da fila.
+- ⏯️ **Pausar e retomar**: continue de onde parou, sem baixar de novo o que já está pronto.
+- 📶 **Só no Wi-Fi**: opcional. Se a internet cair, o app espera e continua sozinho.
+- 🔁 **Retoma depois de fechar o app**: ao abrir, as playlists interrompidas aparecem para você continuar.
+- 🧺 **Várias listas ao mesmo tempo**: deixe uma playlist baixando em segundo plano e comece outra (do Spotify, do YouTube Music...).
 
 ## 📥 Como instalar
 

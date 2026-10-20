@@ -4,6 +4,7 @@ import dev.sumanth.spd.utils.LocaleHelper
 import dev.sumanth.spd.utils.StorageManager
 import dev.sumanth.spd.utils.YtDlp
 import androidx.compose.ui.res.stringResource
+import android.content.ClipboardManager
 import android.content.Context
 import android.Manifest
 import android.content.Intent
@@ -52,6 +53,26 @@ class MainActivity : ComponentActivity() {
 
     private val updateViewModel: UpdaterViewModel by viewModels()
     private val homeScreenViewModel: HomeScreenViewModel by viewModels()
+    private var lastClipTimestamp = 0L
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) return
+        // A link copied in another app is offered once ("Download this link?")
+        try {
+            val manager = getSystemService(ClipboardManager::class.java) ?: return
+            val description = manager.primaryClipDescription ?: return
+            if (!description.hasMimeType("text/plain") && !description.hasMimeType("text/html")) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val stamp = description.timestamp
+                if (stamp == lastClipTimestamp) return
+                lastClipTimestamp = stamp
+            }
+            val text = manager.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+            homeScreenViewModel.onClipboardText(text)
+        } catch (_: Exception) {
+        }
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()

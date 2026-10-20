@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -70,6 +71,7 @@ fun Queue(viewModel: HomeScreenViewModel) {
     val failedCount by remember { derivedStateOf { viewModel.getFailedDownloadsCount() } }
     val downloadedCount by remember { derivedStateOf { viewModel.getDownloadedCount() } }
     val selectedCount by remember { derivedStateOf { viewModel.getSelectedTracksCount() } }
+    val pendingCount by remember { derivedStateOf { viewModel.tracks.count { it.isSelected && it.status != DownloadStatus.COMPLETE } } }
 
     // Back (system button and arrow behave the same): never leaves the user stuck on a result screen.
     // While downloading, back only sends the app to the background; the download service keeps running.
@@ -77,9 +79,10 @@ fun Queue(viewModel: HomeScreenViewModel) {
     BackHandler {
         when {
             isScraping -> viewModel.cancelScraping()
-            isDownloading -> activity?.moveTaskToBack(true)
+            // Downloading: the list keeps going in the background and the user can start another one
+            isDownloading -> viewModel.moveToBackground()
             isDownloadComplete -> viewModel.backToPlatforms()
-            else -> viewModel.reset()
+            else -> viewModel.leaveQueue()
         }
     }
 
@@ -124,6 +127,15 @@ fun Queue(viewModel: HomeScreenViewModel) {
                         }
                     }
                 }
+            }
+
+            if (isDownloading && viewModel.waitingFor != 0) {
+                Text(
+                    text = stringResource(if (viewModel.waitingFor == 2) R.string.waiting_wifi else R.string.waiting_network),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
 
             if (isScraping) {
@@ -205,10 +217,16 @@ fun Queue(viewModel: HomeScreenViewModel) {
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (isScrapingComplete || isDownloadComplete) {
+                if (isScrapingComplete || isDownloadComplete || isDownloading) {
                     OutlinedButton(
-                        // After a download the arrow goes back to the platform list; before it, to the link screen
-                        onClick = { if (isDownloadComplete) viewModel.backToPlatforms() else viewModel.reset() },
+                        // After a download the arrow goes back to the platform list; while downloading the list goes to the background
+                        onClick = {
+                            when {
+                                isDownloadComplete -> viewModel.backToPlatforms()
+                                isDownloading -> viewModel.moveToBackground()
+                                else -> viewModel.leaveQueue()
+                            }
+                        },
                         modifier = Modifier.heightIn(min = 56.dp)
                     ) {
                         Icon(
@@ -232,7 +250,7 @@ fun Queue(viewModel: HomeScreenViewModel) {
                         .weight(1f)
                         .heightIn(min = 56.dp),
                     enabled = (isScraping || (viewModel.tracks.isNotEmpty() && selectedCount > 0)),
-                    colors = if (isDownloading || isScraping) {
+                    colors = if (isScraping) {
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -242,14 +260,16 @@ fun Queue(viewModel: HomeScreenViewModel) {
                     }
                 ) {
                     val icon = when {
-                        isScraping || isDownloading -> Icons.Default.Close
+                        isScraping -> Icons.Default.Close
+                        isDownloading -> Icons.Default.Pause
                         else -> Icons.Default.Download
                     }
                     val text = when {
                         isScraping -> stringResource(R.string.cancel_scraping)
-                        isDownloading -> stringResource(R.string.cancel_download)
+                        isDownloading -> stringResource(R.string.pause_download)
                         isDownloadComplete && failedCount > 0 -> stringResource(R.string.retry_failed, failedCount)
                         isDownloadComplete -> stringResource(R.string.download_another)
+                        isScrapingComplete && downloadedCount > 0 -> stringResource(R.string.resume_remaining, pendingCount)
                         selectedCount == viewModel.tracks.size -> stringResource(R.string.download_all)
                         else -> stringResource(R.string.download_selected, selectedCount)
                     }
@@ -315,6 +335,20 @@ fun TrackItem(
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+            if (track.status == DownloadStatus.DOWNLOADING && track.progress in 0f..1f) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    LinearProgressIndicator(progress = { track.progress }, modifier = Modifier.weight(1f))
+                    Text(
+                        text = "${(track.progress * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             if (track.audioOptions.size > 1) {
                 Text(

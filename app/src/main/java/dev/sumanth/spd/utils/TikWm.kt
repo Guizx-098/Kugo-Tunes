@@ -15,7 +15,12 @@ import java.util.UUID
 
 /** Downloads a direct video address into a private temp folder (the caller deletes `file.parentFile`). */
 object DirectFile {
-    suspend fun download(context: Context, url: String, headers: Map<String, String> = emptyMap()): File =
+    suspend fun download(
+        context: Context,
+        url: String,
+        headers: Map<String, String> = emptyMap(),
+        onProgress: (Float) -> Unit = {}
+    ): File =
         withContext(Dispatchers.IO) {
             val dir = File(context.cacheDir, "spd_direct_" + UUID.randomUUID()).apply { mkdirs() }
             val target = File(dir, "video.mp4")
@@ -24,6 +29,9 @@ object DirectFile {
                 headers.forEach { (k, v) -> builder.header(k, v) }
                 DownloadManager.client.newCall(builder.build()).execute().use { response ->
                     if (!response.isSuccessful) throw DownloadHttpException(response.code)
+                    val total = response.body.contentLength()
+                    var received = 0L
+                    var lastPercent = -1
                     response.body.byteStream().use { input ->
                         target.outputStream().use { output ->
                             val buffer = ByteArray(64 * 1024)
@@ -31,6 +39,14 @@ object DirectFile {
                             while (input.read(buffer).also { read = it } != -1) {
                                 currentCoroutineContext().ensureActive()
                                 output.write(buffer, 0, read)
+                                received += read
+                                if (total > 0) {
+                                    val percent = (received * 100 / total).toInt()
+                                    if (percent != lastPercent) {
+                                        lastPercent = percent
+                                        onProgress((received.toFloat() / total).coerceIn(0f, 1f))
+                                    }
+                                }
                             }
                         }
                     }
@@ -53,9 +69,9 @@ object TikWm {
     const val ENABLED = true
     private const val BASE = "https://www.tikwm.com"
 
-    suspend fun download(context: Context, tiktokUrl: String): File {
+    suspend fun download(context: Context, tiktokUrl: String, onProgress: (Float) -> Unit = {}): File {
         val videoUrl = withContext(Dispatchers.IO) { resolve(tiktokUrl) }
-        return DirectFile.download(context, videoUrl)
+        return DirectFile.download(context, videoUrl, emptyMap(), onProgress)
     }
 
     private fun resolve(tiktokUrl: String): String {

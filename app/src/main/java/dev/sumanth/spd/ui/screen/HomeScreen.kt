@@ -1,6 +1,11 @@
 package dev.sumanth.spd.ui.screen
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import dev.sumanth.spd.ui.component.BackgroundBar
+import dev.sumanth.spd.ui.component.ClipboardBanner
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -17,19 +22,27 @@ import dev.sumanth.spd.ui.viewmodel.HomeScreenViewModel
 
 @Composable
 fun HomeScreen(viewModel: HomeScreenViewModel = viewModel()) {
-    Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        when (viewModel.appStatus) {
-            AppStatus.IDLE -> {
-                when {
-                    viewModel.platform == null -> PlatformSelect(viewModel)
-                    viewModel.platform == Platform.YOUTUBE && viewModel.contentType == null -> YoutubeTypeSelect(viewModel)
-                    else -> Idle(viewModel)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (viewModel.appStatus == AppStatus.IDLE) {
+            ClipboardBanner(viewModel)
+            BackgroundBar(viewModel)
+        }
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when (viewModel.appStatus) {
+                AppStatus.IDLE -> {
+                    when {
+                        viewModel.platform == null -> PlatformSelect(viewModel)
+                        viewModel.platform == Platform.YOUTUBE && viewModel.contentType == null -> YoutubeTypeSelect(viewModel)
+                        else -> Idle(viewModel)
+                    }
+                }
+                else -> {
+                    Queue(viewModel)
                 }
             }
-            else -> {
-                Queue(viewModel)
-            }
         }
-
     }
 }

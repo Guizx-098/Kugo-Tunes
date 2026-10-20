@@ -1,25 +1,33 @@
-## Kugo Tunes 2.6.4
+## Kugo Tunes 2.7.0
 
 **Download:** `Kugo-Tunes.apk` (below, under *Assets*). Open it on your Android phone to install or update.
 
 ### What's new
 
 **✨ New**
-- Redesigned update window: current and new version side by side
-- The changelog is now shown in the app language (English or Português) and formatted, instead of raw text
+- Copied link: the app offers to download a supported link you just copied
+- Percentage on every item of the queue
+- Pause and resume a list; the rest continues where it stopped
+- Optional "Download on Wi-Fi only"
+- Several lists at the same time: leave one in the background and start another
 
 **🔧 Improvements**
-- Long changelogs scroll inside the window
+- If the connection drops, downloads wait and continue by themselves
+- Interrupted playlists are offered again when the app is reopened, without downloading finished files again
 
 > Updates install over the previous version because every release uses the same signing key.
 
 ### Novidades (pt-BR)
 
 **✨ Novo**
-- Janela de atualização redesenhada: versão atual e nova lado a lado
-- O changelog agora aparece no idioma do app (English ou Português) e formatado, em vez de texto cru
+- Link copiado: o app oferece baixar um link compatível que você acabou de copiar
+- Porcentagem em cada item da fila
+- Pausar e retomar uma lista; o resto continua de onde parou
+- Opção "Baixar só no Wi-Fi"
+- Várias listas ao mesmo tempo: deixe uma em segundo plano e comece outra
 
 **🔧 Melhorias**
-- Changelogs longos rolam dentro da janela
+- Se a conexão cair, os downloads esperam e continuam sozinhos
+- Playlists interrompidas voltam a ser oferecidas quando o app abre de novo, sem baixar de novo o que já está pronto
 
 > As atualizações instalam por cima da versão anterior porque todas as versões usam a mesma chave de assinatura.

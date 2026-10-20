@@ -129,6 +129,8 @@ object DownloadManager {
         normalizeCover: Boolean = false,
         audioUrl: String? = null,
         headers: Map<String, String> = emptyMap(),
+        platformFolder: String = PlatformFolders.OTHER,
+        onProgress: (Float) -> Unit = {},
         onStage: (DownloadStatus) -> Unit = {}
     ) {
         // Unique temp names: parallel tasks (or same-title tracks) never share files
@@ -158,7 +160,7 @@ object DownloadManager {
                     async(Dispatchers.IO) { fetchToFile(audioUrl, audioTemp, headers) }
                 } else null
 
-                fetchToFile(url, tempFile, headers)
+                fetchToFile(url, tempFile, headers, onProgress)
                 audioJob?.await()
                 thumbJob?.await()
             }
@@ -186,7 +188,7 @@ object DownloadManager {
             onStage(DownloadStatus.PROCESSING)
 
             val mime = if (!isVideo) "audio/*" else if (extension == "webm") "video/webm" else "video/mp4"
-            saveToFolder(context, processedFile, folderUriString, createSubfolder, playlistName, fileName, finalExtension, mime)
+            saveToFolder(context, processedFile, folderUriString, createSubfolder, playlistName, fileName, finalExtension, mime, platformFolder)
         } finally {
             // Removes every intermediate file of this task (including after failure/cancel)
             context.cacheDir.listFiles { f -> f.name.startsWith("spd_$uid") }?.forEach { it.delete() }
@@ -202,17 +204,18 @@ object DownloadManager {
         playlistName: String?,
         fileName: String,
         extension: String,
-        mime: String
+        mime: String,
+        platformFolder: String
     ) {
         StorageManager.save(
             context, file, folderUriString.ifBlank { null },
-            dev.sumanth.spd.service.DownloadState.platformFolder,
+            platformFolder,
             playlistName, createSubfolder, fileName, extension
         )
     }
 
     /** Downloads [url] into [target]; stops quickly when the coroutine is cancelled. */
-    private suspend fun fetchToFile(url: String, target: File, headers: Map<String, String>) {
+    private suspend fun fetchToFile(url: String, target: File, headers: Map<String, String>, onProgress: (Float) -> Unit = {}) {
         val builder = okhttp3.Request.Builder().url(url).addHeader("Range", "bytes=0-")
         headers.forEach { (key, value) -> builder.header(key, value) }
 
@@ -221,6 +224,9 @@ object DownloadManager {
 
             val body = response.body ?: throw IOException("Empty response body")
 
+            val total = body.contentLength()
+            var received = 0L
+            var lastPercent = -1
             body.byteStream().use { input ->
                 FileOutputStream(target).use { output ->
                     val buffer = ByteArray(BUFFER_SIZE)
@@ -230,6 +236,14 @@ object DownloadManager {
                             throw CancellationException("Download cancelled")
                         }
                         output.write(buffer, 0, bytesRead)
+                        received += bytesRead
+                        if (total > 0) {
+                            val percent = (received * 100 / total).toInt()
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                onProgress((received.toFloat() / total).coerceIn(0f, 1f))
+                            }
+                        }
                     }
                 }
             }

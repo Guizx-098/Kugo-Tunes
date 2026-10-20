@@ -35,7 +35,9 @@ data class Track(
     // TikTok / Instagram / Facebook: downloaded by yt-dlp from sourceUrl
     val useYtDlp: Boolean = false,
     // Why the download failed (shown under the title)
-    val error: String? = null
+    val error: String? = null,
+    // 0..1 while downloading, -1 when unknown
+    val progress: Float = -1f
 )
 
 /** One selectable audio track of a YouTube video (id = YouTube's audio track id). */

@@ -55,6 +55,12 @@ No sign-up, no login and nothing to set up to get started.
 - 🔄 **In-app updates**: Kugo Tunes tells you when a new version is out, shows what's new and installs it for you.
 - 🌐 **English and Portuguese**: switch the language whenever you want.
 - 🌗 **Light and dark theme**.
+- 📋 **Copied link, one tap**: copied a link? The app offers to download it right away, on the right platform.
+- 📊 **Percentage on every item** in the queue.
+- ⏯️ **Pause and resume**: continue where you stopped, without downloading again what is already done.
+- 📶 **Wi-Fi only**: optional. If the internet drops, the app waits and goes on by itself.
+- 🔁 **Resumes after closing the app**: when you open it, interrupted playlists show up so you can continue.
+- 🧺 **Several lists at once**: leave one playlist downloading in the background and start another (Spotify, YouTube Music...).
 
 ## 📥 How to install
 
