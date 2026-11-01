@@ -218,9 +218,14 @@ class DownloadService : Service() {
         val onProgress: (Float) -> Unit = { p -> setProgress(session, index, p) }
         if (track.useYtDlp && track.sourceUrl != null) {
             // TikTok / Instagram / Facebook: yt-dlp downloads (and joins video + audio when needed), then the file is saved
-            val file = obtainSocialFile(track.sourceUrl, onProgress)
+            val fetched = obtainSocialFile(track.sourceUrl, onProgress)
+            val file = fetched.file
             try {
                 currentCoroutineContext().ensureActive()
+                // The real title comes with the download (no extra request): it names the file and shows in the queue
+                val title = (fetched.title ?: file.nameWithoutExtension).replace(Regex("\\s+"), " ").trim().take(80)
+                    .ifBlank { track.title }
+                setTitle(session, index, title)
                 setStatus(session, index, DownloadStatus.PROCESSING)
                 val extension = file.extension.ifBlank { "mp4" }
                 val mime = when (extension) {
@@ -230,7 +235,7 @@ class DownloadService : Service() {
                 }
                 DownloadManager.saveToFolder(
                     this, file, session.downloadPath, session.createSubfolder, session.playlistName,
-                    DownloadManager.sanitizeFilename(track.title), extension, mime, session.platformFolder
+                    DownloadManager.sanitizeFilename(title), extension, mime, session.platformFolder
                 )
             } finally {
                 file.parentFile?.deleteRecursively()
@@ -310,31 +315,52 @@ class DownloadService : Service() {
         return false
     }
 
+    private class Fetched(val file: File, val title: String?)
+
     /**
-     * yt-dlp first. When it cannot get the video, TikTok falls back to TikWM and Instagram to the public embed page.
-     * Definitive answers (private, removed, wrong link) are not retried elsewhere.
+     * TikTok (fast mode, on by default): the quick service first (about a second to find the video), yt-dlp if it fails.
+     * Everything else: yt-dlp first; if it cannot get the video, TikTok falls back to TikWM and Instagram to the public
+     * embed page. Definitive answers (private, removed, wrong link) are not retried elsewhere.
      */
-    private suspend fun obtainSocialFile(url: String, onProgress: (Float) -> Unit): File {
+    private suspend fun obtainSocialFile(url: String, onProgress: (Float) -> Unit): Fetched {
+        val host = android.net.Uri.parse(url).host?.lowercase().orEmpty()
+        val tiktok = host.endsWith("tiktok.com")
+        val fastTikTok = tiktok && TikWm.ENABLED && prefs.getFastTikTok()
+        if (fastTikTok) {
+            try {
+                val result = TikWm.download(this, url, onProgress)
+                return Fetched(result.file, result.title)
+            } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (e is CancellationException) throw e
+                // not available through the quick service: yt-dlp below
+            }
+        }
         try {
-            return YtDlp.download(this, url, onProgress)
+            return Fetched(YtDlp.download(this, url, onProgress), null)
         } catch (e: Exception) {
             currentCoroutineContext().ensureActive()
             if (e is CancellationException) throw e
             if (e is LocalizedException && YtDlp.isDefinitive(e)) throw e
-            val host = android.net.Uri.parse(url).host?.lowercase().orEmpty()
             try {
                 return when {
-                    host.endsWith("tiktok.com") && TikWm.ENABLED -> TikWm.download(this, url, onProgress)
+                    tiktok && TikWm.ENABLED && !fastTikTok -> {
+                        val result = TikWm.download(this, url, onProgress)
+                        Fetched(result.file, result.title)
+                    }
                     host.endsWith("instagram.com") || host == "instagr.am" -> {
                         val alt = withContext(Dispatchers.IO) { SocialVideoExtractor.extract(url, Platform.INSTAGRAM) }
-                        DirectFile.download(
-                            this, alt.directUrl ?: throw e,
-                            buildMap {
-                                put("User-Agent", SocialVideoExtractor.USER_AGENT)
-                                alt.referer?.let { put("Referer", it) }
-                                alt.cookie?.let { put("Cookie", it) }
-                            },
-                            onProgress
+                        Fetched(
+                            DirectFile.download(
+                                this, alt.directUrl ?: throw e,
+                                buildMap {
+                                    put("User-Agent", SocialVideoExtractor.USER_AGENT)
+                                    alt.referer?.let { put("Referer", it) }
+                                    alt.cookie?.let { put("Cookie", it) }
+                                },
+                                onProgress
+                            ),
+                            null
                         )
                     }
                     else -> throw e
@@ -343,6 +369,14 @@ class DownloadService : Service() {
                 currentCoroutineContext().ensureActive()
                 if (e2 is CancellationException) throw e2
                 throw e
+            }
+        }
+    }
+
+    private fun setTitle(session: DownloadSession, index: Int, title: String) {
+        synchronized(statusLock) {
+            if (index in session.tracks.indices) {
+                session.tracks[index] = session.tracks[index].copy(title = title)
             }
         }
     }

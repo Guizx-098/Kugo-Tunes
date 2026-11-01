@@ -1,0 +1,457 @@
+package dev.sumanth.spd.utils
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Log
+import androidx.documentfile.provider.DocumentFile
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFmpegKitConfig
+import com.arthenica.ffmpegkit.Level
+import com.arthenica.ffmpegkit.ReturnCode
+import dev.sumanth.spd.model.DownloadStatus
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.schabi.newpipe.extractor.ServiceList.YouTube
+import org.schabi.newpipe.extractor.downloader.Downloader
+import org.schabi.newpipe.extractor.downloader.Request
+import org.schabi.newpipe.extractor.downloader.Response
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeMusicSearchExtractor
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
+
+data class FileMeta(
+    val url: String,
+    val name: String,
+    val extention: String,
+    /** Separate audio stream (best-quality video is delivered as video-only + audio and merged locally) */
+    val audioUrl: String? = null,
+    val headers: Map<String, String> = emptyMap()
+)
+
+object DownloadManager {
+    private const val BUFFER_SIZE = 64 * 1024
+    private const val TAG = "DownloadManager"
+
+    val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    fun getFileMeta(title: String, artist: String): FileMeta {
+        val extra = YouTube.getSearchExtractor(
+            title + " " + artist,
+            listOf(YoutubeSearchQueryHandlerFactory.MUSIC_SONGS),
+            null
+        ) as YoutubeMusicSearchExtractor
+        extra.fetchPage()
+
+        val mediaLink = extra.initialPage.items.firstOrNull()?.url
+            ?: throw IOException("No search results found for $title")
+
+        return getFileMetaFromUrl(mediaLink, false)
+    }
+
+    /** Direct YouTube / YouTube Music item. [wantVideo] = best muxed mp4, otherwise best m4a audio. */
+    fun getFileMetaFromUrl(mediaLink: String, wantVideo: Boolean, audioTrackId: String? = null): FileMeta {
+        val extractor = YouTube.getStreamExtractor(mediaLink)
+        extractor.fetchPage()
+
+        if (wantVideo) {
+            // Highest resolution available: video-only stream + best audio of the same container family
+            val progressive = extractor.videoStreams
+                .filter { it.format?.suffix == "mp4" }
+                .maxByOrNull { it.height }
+            val bestVideo = extractor.videoOnlyStreams
+                .filter { it.content.isNotBlank() && (it.format?.suffix == "mp4" || it.format?.suffix == "webm") }
+                .maxWithOrNull(compareBy({ it.height }, { if (it.format?.suffix == "mp4") 1 else 0 }))
+
+            if (bestVideo != null && (progressive == null || bestVideo.height > progressive.height)) {
+                val container = bestVideo.format?.suffix ?: "mp4"
+                val audioSuffix = if (container == "mp4") "m4a" else "webm"
+                // Original audio track first (never an automatic dub); the user's explicit choice wins
+                val audio = AudioTrackSelector.pick(
+                    extractor.audioStreams.filter { it.format?.suffix == audioSuffix },
+                    audioTrackId
+                )
+                if (audio != null) {
+                    return FileMeta(
+                        url = bestVideo.content,
+                        name = extractor.name,
+                        extention = container,
+                        audioUrl = audio.content
+                    )
+                }
+            }
+            val fallback = progressive ?: throw IOException("No video streams found for ${extractor.name}")
+            return FileMeta(url = fallback.content, name = extractor.name, extention = "mp4")
+        }
+
+        val bestStream = AudioTrackSelector.pick(
+            extractor.audioStreams.filter { it.format?.suffix == "m4a" },
+            audioTrackId
+        ) ?: throw IOException("No audio streams found for ${extractor.name}")
+
+        return FileMeta(url = bestStream.content, name = extractor.name, extention = "m4a")
+    }
+
+    /**
+     * Full, independent pipeline of ONE task: download -> (convert to MP3 | tag) -> copy to folder.
+     * Returns only after every step finished successfully; any failure throws.
+     */
+    suspend fun downloadFile(
+        context: Context,
+        url: String,
+        folderUriString: String,
+        fileName: String,
+        extension: String,
+        convertToMp3: Boolean,
+        artist: String,
+        imageUrl: String? = null,
+        createSubfolder: Boolean = true,
+        playlistName: String? = null,
+        isVideo: Boolean = false,
+        normalizeCover: Boolean = false,
+        audioUrl: String? = null,
+        headers: Map<String, String> = emptyMap(),
+        platformFolder: String = PlatformFolders.OTHER,
+        onProgress: (Float) -> Unit = {},
+        onStage: (DownloadStatus) -> Unit = {}
+    ) {
+        // Unique temp names: parallel tasks (or same-title tracks) never share files
+        val uid = UUID.randomUUID().toString()
+        val tempFile = File(context.cacheDir, "spd_$uid.$extension")
+        val thumbTarget = File(context.cacheDir, "spd_$uid.jpg")
+        val audioTemp = File(context.cacheDir, "spd_$uid.audio")
+
+        try {
+            val thumbFile: File? = coroutineScope {
+                val thumbJob = if (imageUrl != null && !isVideo) {
+                    async(Dispatchers.IO) {
+                        // maxresdefault does not exist for every video: try standard YouTube sizes before giving up
+                        val raw = (listOf(imageUrl) + thumbnailFallbacks(imageUrl))
+                            .firstNotNullOfOrNull { downloadThumbnail(it, thumbTarget) }
+                        if (raw == null) {
+                            Log.w(TAG, "Cover download failed for $fileName")
+                            null
+                        } else if (normalizeCover) {
+                            normalizeCoverImage(raw, File(context.cacheDir, "spd_$uid.cover.jpg"))
+                        } else raw
+                    }
+                } else null
+
+                // Video and its separate audio stream (when present) are downloaded at the same time
+                val audioJob = if (audioUrl != null) {
+                    async(Dispatchers.IO) { fetchToFile(audioUrl, audioTemp, headers) }
+                } else null
+
+                fetchToFile(url, tempFile, headers, onProgress)
+                audioJob?.await()
+                thumbJob?.await()
+            }
+            currentCoroutineContext().ensureActive()
+
+            onStage(if (convertToMp3) DownloadStatus.CONVERTING else DownloadStatus.PROCESSING)
+
+            val processedFile = if (audioUrl != null) {
+                mergeStreams(tempFile, audioTemp, extension, fileName, artist)
+            } else if (convertToMp3) {
+                convertToMp3(tempFile, fileName, artist, thumbFile)
+            } else {
+                tagFile(tempFile, extension, fileName, artist, thumbFile)
+            }
+            currentCoroutineContext().ensureActive()
+
+            val finalExtension = if (convertToMp3) "mp3" else extension
+            if (!processedFile.exists() || processedFile.length() == 0L) {
+                throw IOException("Processed file is missing or empty for $fileName")
+            }
+            if (convertToMp3 && !processedFile.name.endsWith(".mp3")) {
+                throw IOException("MP3 conversion was not applied for $fileName")
+            }
+
+            onStage(DownloadStatus.PROCESSING)
+
+            val mime = if (!isVideo) "audio/*" else if (extension == "webm") "video/webm" else "video/mp4"
+            saveToFolder(context, processedFile, folderUriString, createSubfolder, playlistName, fileName, finalExtension, mime, platformFolder)
+        } finally {
+            // Removes every intermediate file of this task (including after failure/cancel)
+            context.cacheDir.listFiles { f -> f.name.startsWith("spd_$uid") }?.forEach { it.delete() }
+        }
+    }
+
+    /** Saves [file] (default Download/Kugo Tunes or the folder chosen by the user), inside the folder of the source platform. */
+    fun saveToFolder(
+        context: Context,
+        file: File,
+        folderUriString: String,
+        createSubfolder: Boolean,
+        playlistName: String?,
+        fileName: String,
+        extension: String,
+        mime: String,
+        platformFolder: String
+    ) {
+        StorageManager.save(
+            context, file, folderUriString.ifBlank { null },
+            platformFolder,
+            playlistName, createSubfolder, fileName, extension
+        )
+    }
+
+    /** Downloads [url] into [target]; stops quickly when the coroutine is cancelled. */
+    private suspend fun fetchToFile(url: String, target: File, headers: Map<String, String>, onProgress: (Float) -> Unit = {}) {
+        val builder = okhttp3.Request.Builder().url(url).addHeader("Range", "bytes=0-")
+        headers.forEach { (key, value) -> builder.header(key, value) }
+
+        client.newCall(builder.build()).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+
+            val body = response.body ?: throw IOException("Empty response body")
+
+            val total = body.contentLength()
+            var received = 0L
+            var lastPercent = -1
+            body.byteStream().use { input ->
+                FileOutputStream(target).use { output ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        if (!currentCoroutineContext().isActive) {
+                            throw CancellationException("Download cancelled")
+                        }
+                        output.write(buffer, 0, bytesRead)
+                        received += bytesRead
+                        if (total > 0) {
+                            val percent = (received * 100 / total).toInt()
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                onProgress((received.toFloat() / total).coerceIn(0f, 1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Joins the video-only and audio streams without re-encoding (keeps quality and sync). Throws on failure. */
+    private fun mergeStreams(video: File, audio: File, ext: String, trackName: String, artist: String): File {
+        val output = File(video.parent, "${video.nameWithoutExtension}.merged.$ext")
+        val args = mutableListOf(
+            "-i", video.absolutePath, "-i", audio.absolutePath,
+            "-map", "0:v:0", "-map", "1:a:0", "-c", "copy",
+            "-metadata", "title=$trackName"
+        )
+        if (artist.isNotBlank()) args += listOf("-metadata", "artist=$artist")
+        // ffmpeg-kit-audio has no "mp4" muxer; "ipod" writes a normal MP4 for H.264 + AAC
+        if (output.extension == "mp4") args += listOf("-f", "ipod")
+        args += listOf("-y", output.absolutePath)
+
+        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
+        val session = FFmpegKit.executeWithArguments(args.toTypedArray())
+        if (!ReturnCode.isSuccess(session.returnCode) || !output.exists() || output.length() == 0L) {
+            output.delete()
+            throw IOException("Could not merge video and audio for $trackName")
+        }
+        return output
+    }
+
+    fun sanitizeFilename(name: String): String {
+        return name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+    }
+
+    private fun tagFile(file: File, ext: String, trackName: String, artist: String, thumbFile: File? = null): File {
+        val tempFile = File(file.parent, "${file.nameWithoutExtension}.tmp.$ext")
+
+        var ok = runTagging(file, tempFile, ext, trackName, artist, thumbFile)
+        if (!ok && thumbFile != null) {
+            // Cover can't be muxed into this container: still write title/artist instead of losing everything
+            Log.w(TAG, "Embedding cover failed for $trackName, retrying without cover")
+            ok = runTagging(file, tempFile, ext, trackName, artist, null)
+        }
+
+        return if (ok) {
+            file.delete()
+            tempFile
+        } else {
+            tempFile.delete()
+            file
+        }
+    }
+
+    private fun runTagging(input: File, output: File, ext: String, trackName: String, artist: String, thumbFile: File?): Boolean {
+        val args = mutableListOf("-i", input.absolutePath)
+        if (thumbFile != null) {
+            args += listOf("-i", thumbFile.absolutePath, "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:0", "attached_pic")
+        } else {
+            args += listOf("-codec", "copy")
+        }
+        args += listOf("-metadata", "title=$trackName", "-metadata", "artist=$artist")
+        if (output.extension == "mp4") args += listOf("-f", "ipod")
+        args += listOf("-y", output.absolutePath)
+
+        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
+        val session = FFmpegKit.executeWithArguments(args.toTypedArray())
+        return ReturnCode.isSuccess(session.returnCode) && output.exists() && output.length() > 0L
+    }
+
+    /**
+     * YouTube covers can be WebP and 16:9. Decode with Android (handles jpeg/png/webp), crop the center
+     * square and save as JPEG - the same kind of image the Spotify flow already embeds successfully.
+     * If anything fails, the original downloaded image is used.
+     */
+    private fun normalizeCoverImage(source: File, target: File): File {
+        var bitmap: Bitmap? = null
+        return try {
+            bitmap = BitmapFactory.decodeFile(source.absolutePath)
+            if (bitmap == null) {
+                Log.w(TAG, "Cover could not be decoded, using original image")
+                return source
+            }
+            val size = minOf(bitmap.width, bitmap.height)
+            val square = Bitmap.createBitmap(bitmap, (bitmap.width - size) / 2, (bitmap.height - size) / 2, size, size)
+            target.outputStream().use { square.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+            if (square !== bitmap) square.recycle()
+            if (target.exists() && target.length() > 0L) target else source
+        } catch (e: Exception) {
+            Log.w(TAG, "Cover normalization failed: ${e.message}")
+            source
+        } finally {
+            bitmap?.recycle()
+        }
+    }
+
+    /** Strict: returns an existing, non-empty .mp3 or throws. Never falls back to the original file. */
+    private fun convertToMp3(file: File, trackName: String, artist: String, thumbFile: File? = null): File {
+        val output = File(file.parent, "${file.nameWithoutExtension}.mp3")
+
+        var ok = runMp3Conversion(file, output, trackName, artist, thumbFile)
+        if (!ok && thumbFile != null) {
+            // Cover art can break the mux: retry once without cover so the track is still converted
+            Log.w(TAG, "MP3 with cover failed for $trackName, retrying without cover")
+            ok = runMp3Conversion(file, output, trackName, artist, null)
+        }
+        if (!ok) {
+            output.delete()
+            throw IOException("MP3 conversion failed for $trackName")
+        }
+        file.delete()
+        return output
+    }
+
+    private fun runMp3Conversion(input: File, output: File, trackName: String, artist: String, thumbFile: File?): Boolean {
+        val args = mutableListOf("-i", input.absolutePath)
+        if (thumbFile != null) {
+            args += listOf(
+                "-i", thumbFile.absolutePath,
+                "-map", "0:a", "-map", "1:0", "-c:a", "libmp3lame", "-ab", "192k", "-ar", "44100",
+                "-id3v2_version", "3",
+                "-metadata:s:v", "title=Album cover", "-metadata:s:v", "comment=Cover (Front)"
+            )
+        } else {
+            args += listOf("-map", "0:a", "-c:a", "libmp3lame", "-ab", "192k", "-ar", "44100")
+        }
+        args += listOf("-metadata", "title=$trackName", "-metadata", "artist=$artist", "-y", output.absolutePath)
+
+        FFmpegKitConfig.setLogLevel(Level.AV_LOG_QUIET)
+        val session = FFmpegKit.executeWithArguments(args.toTypedArray())
+        return ReturnCode.isSuccess(session.returnCode) && output.exists() && output.length() > 0L
+    }
+
+    private fun thumbnailFallbacks(url: String): List<String> {
+        val id = Regex("https?://i\\.ytimg\\.com/vi(?:_webp)?/([\\w-]{11})/").find(url)?.groupValues?.get(1)
+            ?: return emptyList()
+        return listOf("sddefault", "hqdefault").map { "https://i.ytimg.com/vi/$id/$it.jpg" }.filter { it != url }
+    }
+
+    private fun downloadThumbnail(url: String, target: File): File? {
+        return try {
+            val request = okhttp3.Request.Builder().url(url).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                response.body.byteStream().use { input ->
+                    target.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                target
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+class NewPipeDownloader private constructor() : Downloader() {
+    
+    @Throws(IOException::class, ReCaptchaException::class)
+    override fun execute(request: Request): Response {
+        val httpMethod = request.httpMethod()
+        val url = request.url()
+        val headers = request.headers()
+        val dataToSend = request.dataToSend()
+        
+        var requestBody = dataToSend?.toRequestBody()
+
+        if (requestBody == null && (httpMethod == "POST" || httpMethod == "PUT" || httpMethod == "PATCH")) {
+            requestBody = "".toRequestBody()
+        }
+
+        val requestBuilder = okhttp3.Request.Builder()
+            .method(httpMethod, requestBody)
+            .url(url)
+            .addHeader("User-Agent", USER_AGENT)
+
+        headers.forEach { (name, values) ->
+            values.forEach { value ->
+                requestBuilder.addHeader(name, value)
+            }
+        }
+
+        val response = DownloadManager.client.newCall(requestBuilder.build()).execute()
+        
+        if (response.code == 429) {
+            response.close()
+            throw ReCaptchaException("reCaptcha Challenge requested", url)
+        }
+
+        val bodyString = response.body?.string() ?: ""
+        val latestUrl = response.request.url.toString()
+        
+        return Response(
+            response.code,
+            response.message,
+            response.headers.toMultimap(),
+            bodyString,
+            latestUrl
+        )
+    }
+
+    companion object {
+        const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        private var instance: NewPipeDownloader? = null
+
+        fun getInstance(): NewPipeDownloader {
+            if (instance == null) {
+                instance = NewPipeDownloader()
+            }
+            return instance!!
+        }
+    }
+}

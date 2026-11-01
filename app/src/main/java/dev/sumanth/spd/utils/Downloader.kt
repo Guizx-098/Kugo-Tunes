@@ -11,6 +11,16 @@ import com.arthenica.ffmpegkit.Level
 import com.arthenica.ffmpegkit.ReturnCode
 import dev.sumanth.spd.model.DownloadStatus
 import okhttp3.OkHttpClient
+import okhttp3.ConnectionPool
+import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.schabi.newpipe.extractor.ServiceList.YouTube
 import org.schabi.newpipe.extractor.downloader.Downloader
@@ -50,6 +60,8 @@ object DownloadManager {
         OkHttpClient.Builder()
             .readTimeout(30, TimeUnit.SECONDS)
             .connectTimeout(30, TimeUnit.SECONDS)
+            // several parallel connections per file: keep them open for reuse
+            .connectionPool(ConnectionPool(32, 5, TimeUnit.MINUTES))
             .build()
     }
 
@@ -215,38 +227,143 @@ object DownloadManager {
     }
 
     /** Downloads [url] into [target]; stops quickly when the coroutine is cancelled. */
-    private suspend fun fetchToFile(url: String, target: File, headers: Map<String, String>, onProgress: (Float) -> Unit = {}) {
-        val builder = okhttp3.Request.Builder().url(url).addHeader("Range", "bytes=0-")
-        headers.forEach { (key, value) -> builder.header(key, value) }
+    private const val CHUNK_SIZE = 8L * 1024 * 1024
+    private const val PARALLEL_CHUNKS = 4
 
-        client.newCall(builder.build()).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+    /** Counts the bytes that arrive on several connections and reports whole percents. */
+    private class ProgressTracker(private val onProgress: (Float) -> Unit) {
+        @Volatile var total: Long = -1L
+        private val received = AtomicLong(0)
+        private val lastPercent = AtomicInteger(-1)
 
-            val body = response.body ?: throw IOException("Empty response body")
-
-            val total = body.contentLength()
-            var received = 0L
-            var lastPercent = -1
-            body.byteStream().use { input ->
-                FileOutputStream(target).use { output ->
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var bytesRead: Int
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        if (!currentCoroutineContext().isActive) {
-                            throw CancellationException("Download cancelled")
-                        }
-                        output.write(buffer, 0, bytesRead)
-                        received += bytesRead
-                        if (total > 0) {
-                            val percent = (received * 100 / total).toInt()
-                            if (percent != lastPercent) {
-                                lastPercent = percent
-                                onProgress((received.toFloat() / total).coerceIn(0f, 1f))
-                            }
-                        }
-                    }
+        fun add(bytes: Long) {
+            val now = received.addAndGet(bytes)
+            val size = total
+            if (size > 0) {
+                val percent = (now * 100 / size).toInt().coerceIn(0, 100)
+                if (lastPercent.getAndSet(percent) != percent) {
+                    onProgress((now.toFloat() / size).coerceIn(0f, 1f))
                 }
             }
+        }
+
+        fun reset() {
+            received.set(0)
+            lastPercent.set(-1)
+        }
+    }
+
+    private fun rangeRequest(url: String, headers: Map<String, String>, start: Long, end: Long): okhttp3.Request {
+        val builder = okhttp3.Request.Builder().url(url).header("Range", "bytes=$start-$end")
+        headers.forEach { (key, value) -> builder.header(key, value) }
+        return builder.build()
+    }
+
+    /** Writes the body into the file starting at [startPosition]. Positional writes let several connections fill one file. */
+    private suspend fun copyBody(
+        body: okhttp3.ResponseBody,
+        channel: FileChannel,
+        startPosition: Long,
+        tracker: ProgressTracker,
+        counted: LongArray? = null
+    ) {
+        var position = startPosition
+        val buffer = ByteArray(BUFFER_SIZE)
+        body.byteStream().use { input ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read == -1) break
+                currentCoroutineContext().ensureActive()
+                val bytes = ByteBuffer.wrap(buffer, 0, read)
+                while (bytes.hasRemaining()) {
+                    position += channel.write(bytes, position)
+                }
+                tracker.add(read.toLong())
+                if (counted != null) counted[0] += read.toLong()
+            }
+        }
+    }
+
+    /** One piece of the file, tried up to 3 times (a dropped piece does not restart the whole download). */
+    private suspend fun fetchRange(
+        url: String,
+        headers: Map<String, String>,
+        channel: FileChannel,
+        start: Long,
+        end: Long,
+        tracker: ProgressTracker
+    ) {
+        var attempt = 0
+        while (true) {
+            val counted = LongArray(1)
+            try {
+                client.newCall(rangeRequest(url, headers, start, end)).execute().use { response ->
+                    if (!response.isSuccessful) throw DownloadHttpException(response.code)
+                    if (response.code != 206) throw IOException("The server stopped honoring ranges")
+                    copyBody(response.body, channel, start, tracker, counted)
+                }
+                return
+            } catch (e: IOException) {
+                currentCoroutineContext().ensureActive()
+                tracker.add(-counted[0])
+                attempt++
+                if (attempt >= 3 || (e is DownloadHttpException && e.code in 400..499)) throw e
+                delay(400L * attempt)
+            }
+        }
+    }
+
+    /**
+     * Downloads [url] into [target]. The first piece (8 MB) tells the full size; the rest is fetched in 4 parallel
+     * pieces. Pieces of at most 8 MB also avoid the speed limit YouTube applies to one long request. Servers that do
+     * not support ranges are downloaded in a single stream, as before.
+     */
+    suspend fun fetchToFile(url: String, target: File, headers: Map<String, String>, onProgress: (Float) -> Unit = {}) {
+        val tracker = ProgressTracker(onProgress)
+        RandomAccessFile(target, "rw").use { file ->
+            val channel = file.channel
+            var total = -1L
+            var parallel = false
+            var singleStream = false
+            client.newCall(rangeRequest(url, headers, 0, CHUNK_SIZE - 1)).execute().use { response ->
+                if (!response.isSuccessful) throw DownloadHttpException(response.code)
+                val body = response.body
+                total = if (response.code == 206) {
+                    response.header("Content-Range")?.substringAfter('/')?.toLongOrNull() ?: -1L
+                } else {
+                    body.contentLength()
+                }
+                tracker.total = total
+                parallel = response.code == 206 && total > CHUNK_SIZE
+                // A partial answer with an unknown full size cannot be completed by pieces: download it in one go
+                singleStream = response.code == 206 && total <= 0
+                if (!singleStream) copyBody(body, channel, 0L, tracker)
+            }
+            if (singleStream) {
+                tracker.reset()
+                val builder = okhttp3.Request.Builder().url(url)
+                headers.forEach { (key, value) -> builder.header(key, value) }
+                client.newCall(builder.build()).execute().use { response ->
+                    if (!response.isSuccessful) throw DownloadHttpException(response.code)
+                    tracker.total = response.body.contentLength()
+                    total = tracker.total
+                    file.setLength(0)
+                    copyBody(response.body, channel, 0L, tracker)
+                }
+            }
+            if (parallel) {
+                coroutineScope {
+                    val limit = Semaphore(PARALLEL_CHUNKS)
+                    (CHUNK_SIZE until total step CHUNK_SIZE).map { start ->
+                        async(Dispatchers.IO) {
+                            limit.withPermit {
+                                fetchRange(url, headers, channel, start, minOf(start + CHUNK_SIZE, total) - 1, tracker)
+                            }
+                        }
+                    }.awaitAll()
+                }
+            }
+            if (total > 0 && target.length() != total) throw IOException("Incomplete download")
         }
     }
 

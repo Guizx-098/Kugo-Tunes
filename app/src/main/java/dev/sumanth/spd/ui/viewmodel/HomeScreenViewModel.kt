@@ -284,6 +284,10 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         platform = selected
         contentType = null
         spotifyLink = ""
+        if (selected == Platform.TIKTOK || selected == Platform.INSTAGRAM || selected == Platform.FACEBOOK) {
+            // Keeps yt-dlp current while the user pastes the link, instead of making the download wait for it
+            viewModelScope.launch(Dispatchers.IO) { YtDlp.updateIfNeeded(getApplication()) }
+        }
     }
 
     /** One step back in the home flow (link -> type -> platform list). */

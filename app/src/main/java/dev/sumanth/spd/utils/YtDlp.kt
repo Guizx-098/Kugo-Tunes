@@ -65,17 +65,22 @@ object YtDlp {
      * yt-dlp fixes TikTok / Instagram almost every week and the copy bundled in the app gets old, so it is updated
      * from the official nightly channel (at most every 12 hours, or right away when [force] is true).
      */
-    fun updateIfNeeded(context: Context, force: Boolean = false) {
-        if (!isReady(context)) return
+    fun updateIfNeeded(context: Context, force: Boolean = false): Boolean {
+        if (!isReady(context)) return false
         val prefs = context.applicationContext.getSharedPreferences("ytdlp_update", Context.MODE_PRIVATE)
-        synchronized(updateLock) {
+        return synchronized(updateLock) {
             val now = System.currentTimeMillis()
-            if (!force && now - prefs.getLong("last_update", 0L) < UPDATE_EVERY_MS) return
-            try {
-                runUpdate(context.applicationContext)
-                prefs.edit().putLong("last_update", now).apply()
-            } catch (e: Throwable) {
-                Log.w(TAG, "yt-dlp update failed: ${e.javaClass.simpleName}")
+            if (!force && now - prefs.getLong("last_update", 0L) < UPDATE_EVERY_MS) {
+                false
+            } else {
+                try {
+                    runUpdate(context.applicationContext)
+                    prefs.edit().putLong("last_update", now).apply()
+                    true
+                } catch (e: Throwable) {
+                    Log.w(TAG, "yt-dlp update failed: ${e.javaClass.simpleName}")
+                    false
+                }
             }
         }
     }
@@ -131,27 +136,18 @@ object YtDlp {
 
     /** Validates the link, reads the title and thumbnail, and returns the task to download. */
     fun resolveTrack(context: Context, input: String, platform: Platform): Track {
+        // Only checks the link. The video is read once, by the download itself (reading it twice doubled the waiting time)
         val pageUrl = SocialVideoExtractor.prepare(input, platform)
         val name = when (platform) {
             Platform.TIKTOK -> "TikTok"
             Platform.INSTAGRAM -> "Instagram Reel"
             else -> "Facebook video"
         }
-        if (platform == Platform.TIKTOK || platform == Platform.INSTAGRAM) updateIfNeeded(context)
-        val info = try {
-            YoutubeDL.getInstance().getInfo(baseRequest(pageUrl))
-        } catch (e: Exception) {
-            Log.w(TAG, "info failed for $platform: ${e.message?.take(300)}")
-            val mapped = mapError(e)
-            // TikTok / Instagram: only definitive answers stop here; otherwise the download tries the other sources
-            if ((platform == Platform.TIKTOK || platform == Platform.INSTAGRAM) && !isDefinitive(mapped)) null else throw mapped
-        }
-        val title = (info?.title ?: "").replace(Regex("\\s+"), " ").trim().take(80).ifBlank { name }
         return Track(
-            title = title,
+            title = name,
             artist = "",
             status = DownloadStatus.IDLE,
-            imageUrl = info?.thumbnail,
+            imageUrl = null,
             isVideo = true,
             sourceUrl = pageUrl,
             useYtDlp = true
@@ -167,8 +163,9 @@ object YtDlp {
             return downloadOnce(context, url, onProgress)
         } catch (e: LocalizedException) {
             if (e.resId != R.string.err_extraction_failed) throw e
-            // "could not read the video" usually means the bundled extractor is outdated: update and try once more
-            withContext(Dispatchers.IO) { updateIfNeeded(context, force = true) }
+            // "could not read the video" can mean the extractor is outdated: when an update was due, update and try once more
+            val updated = withContext(Dispatchers.IO) { updateIfNeeded(context) }
+            if (!updated) throw e
             return downloadOnce(context, url, onProgress)
         }
     }
@@ -184,7 +181,8 @@ object YtDlp {
             addOption("--merge-output-format", "mp4")
             addOption("-N", "4")
             addOption("--no-mtime")
-            addOption("-o", File(dir, "video.%(ext)s").absolutePath)
+            // The file is named after the video title, so no separate request is needed to read it
+            addOption("-o", File(dir, "%(title).60s.%(ext)s").absolutePath)
         }
         val handle = currentCoroutineContext()[Job]?.invokeOnCompletion { cause ->
             if (cause != null) runCatching { YoutubeDL.getInstance().destroyProcessById(id) }

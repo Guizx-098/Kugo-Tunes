@@ -22,6 +22,7 @@ class PreferencesScreenViewModel(application: Application) : AndroidViewModel(ap
     var concurrentDownloads by mutableIntStateOf(sharedPref.getConcurrentDownloads())
     var language by mutableStateOf(sharedPref.getLanguage())
     var wifiOnly by mutableStateOf(sharedPref.getWifiOnly())
+    var fastTikTok by mutableStateOf(sharedPref.getFastTikTok())
 
     val developerName = "Guizx-098"
     private val githubUrl = "https://github.com/Guizx-098/spd-turbo"
