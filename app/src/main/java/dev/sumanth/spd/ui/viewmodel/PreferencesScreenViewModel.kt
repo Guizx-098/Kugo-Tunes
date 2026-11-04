@@ -25,7 +25,7 @@ class PreferencesScreenViewModel(application: Application) : AndroidViewModel(ap
     var fastTikTok by mutableStateOf(sharedPref.getFastTikTok())
 
     val developerName = "Guizx-098"
-    private val githubUrl = "https://github.com/Guizx-098/spd-turbo"
+    private val githubUrl = "https://github.com/Guizx-098/Kugo-Tunes"
     private val profileUrl = "https://github.com/Guizx-098"
     val packageInfo = application.packageManager.getPackageInfo(application.packageName, 0)
 

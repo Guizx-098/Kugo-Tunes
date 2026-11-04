@@ -348,7 +348,7 @@ fun PreferencesScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable {
-                        uriHandler.openUri("https://github.com/Guizx-098/spd-turbo/blob/main/LICENSE")
+                        uriHandler.openUri("https://github.com/Guizx-098/Kugo-Tunes/blob/main/LICENSE")
                     }
                 )
                 Text(

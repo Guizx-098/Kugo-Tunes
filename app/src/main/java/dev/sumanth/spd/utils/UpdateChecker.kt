@@ -19,7 +19,7 @@ class NoReleaseException : IOException("No release has been published")
 /** Reads the latest published GitHub Release of this project. */
 object UpdateChecker {
     private const val OWNER = "Guizx-098"
-    private const val REPO = "spd-turbo"
+    private const val REPO = "Kugo-Tunes"
     private const val LATEST_URL = "https://api.github.com/repos/$OWNER/$REPO/releases/latest"
 
     fun fetchLatest(): ReleaseInfo {

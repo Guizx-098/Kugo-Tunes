@@ -6,9 +6,9 @@
 
 **Download music and videos from your favorite platforms straight to your phone, organized and with cover art.**
 
-[![Version](https://img.shields.io/github/v/release/Guizx-098/spd-turbo?style=for-the-badge&color=6c5ce7&label=version)](https://github.com/Guizx-098/spd-turbo/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/Guizx-098/spd-turbo/total?style=for-the-badge&color=00b8d9&label=downloads)](https://github.com/Guizx-098/spd-turbo/releases)
-[![Android](https://img.shields.io/badge/Android-7.0%2B-3ddc84?style=for-the-badge)](https://github.com/Guizx-098/spd-turbo/releases/latest)
+[![Version](https://img.shields.io/github/v/release/Guizx-098/Kugo-Tunes?style=for-the-badge&color=6c5ce7&label=version)](https://github.com/Guizx-098/Kugo-Tunes/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Guizx-098/Kugo-Tunes/total?style=for-the-badge&color=00b8d9&label=downloads)](https://github.com/Guizx-098/Kugo-Tunes/releases)
+[![Android](https://img.shields.io/badge/Android-7.0%2B-3ddc84?style=for-the-badge)](https://github.com/Guizx-098/Kugo-Tunes/releases/latest)
 
 [🇧🇷 Português](README.md) · **🇺🇸 English**
 
@@ -18,7 +18,7 @@
 
 <br><br>
 
-### [📲 Download the app](https://github.com/Guizx-098/spd-turbo/releases/latest)
+### [📲 Download the app](https://github.com/Guizx-098/Kugo-Tunes/releases/latest)
 
 </div>
 
@@ -65,7 +65,7 @@ No sign-up, no login and nothing to set up to get started.
 
 ## 📥 How to install
 
-1. Open the [**Releases**](https://github.com/Guizx-098/spd-turbo/releases/latest) page.
+1. Open the [**Releases**](https://github.com/Guizx-098/Kugo-Tunes/releases/latest) page.
 2. Download the **Kugo-Tunes.apk** file.
 3. Open the file on your phone and, if Android asks, allow installing apps from this source.
 4. Done: open Kugo Tunes and start downloading.
@@ -120,7 +120,7 @@ Use Kugo Tunes only to download content you have the right to save, and respect 
 
 Developed by [**Guizx-098**](https://github.com/Guizx-098).
 
-Ideas, problems or suggestions? [Open an issue](https://github.com/Guizx-098/spd-turbo/issues).
+Ideas, problems or suggestions? [Open an issue](https://github.com/Guizx-098/Kugo-Tunes/issues).
 
 ## 📜 License
 
