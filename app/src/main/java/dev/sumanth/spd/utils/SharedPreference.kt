@@ -30,12 +30,6 @@ class SharedPref(context: Context) {
         }
     }
 
-    fun getFastTikTok(): Boolean = sharedPref.getBoolean(KEY_FAST_TIKTOK, true)
-
-    fun storeFastTikTok(value: Boolean) {
-        sharedPref.edit { putBoolean(KEY_FAST_TIKTOK, value) }
-    }
-
     fun getWifiOnly(): Boolean = sharedPref.getBoolean(KEY_WIFI_ONLY, false)
 
     fun storeWifiOnly(value: Boolean) {
@@ -116,7 +110,6 @@ class SharedPref(context: Context) {
         private const val KEY_CREATE_SUBFOLDER = "create_subfolder"
         private const val KEY_CONCURRENT_DOWNLOADS = "concurrent_downloads"
         private const val KEY_WIFI_ONLY = "wifi_only"
-        private const val KEY_FAST_TIKTOK = "fast_tiktok"
         private const val KEY_LANGUAGE = "language"
         private const val KEY_SKIPPED_UPDATE = "skipped_update_version"
     }

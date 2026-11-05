@@ -55,7 +55,7 @@ Sem cadastro, sem login e sem configurar nada para começar.
 - 🔄 **Atualização dentro do app**: o Kugo Tunes avisa quando há versão nova, mostra as novidades e instala para você.
 - 🌐 **Português e inglês**: troque o idioma quando quiser.
 - 🌗 **Tema claro e escuro**.
-- 🚀 **Downloads mais rápidos**: arquivos grandes são baixados em partes ao mesmo tempo, e o TikTok encontra o vídeo em cerca de um segundo.
+- 🚀 **Downloads mais rápidos**: arquivos grandes são baixados em partes ao mesmo tempo, e o TikTok e o Instagram encontram o vídeo em cerca de um segundo.
 - 📋 **Link copiado, um toque**: copiou um link? O app oferece baixar na hora, já na plataforma certa.
 - 📊 **Porcentagem em cada item** da fila.
 - ⏯️ **Pausar e retomar**: continue de onde parou, sem baixar de novo o que já está pronto.
@@ -110,7 +110,7 @@ Porque já traz tudo o que precisa para ler e processar os vídeos, sem depender
 ## 🔒 Privacidade
 
 - O Kugo Tunes não pede conta nem login.
-- Nos downloads do TikTok, o app usa por padrão um serviço externo para encontrar o vídeo mais rápido. **O link do vídeo é enviado a esse serviço.** Você pode desligar isso em Preferências (“Downloads rápidos do TikTok”); com a opção desligada, o serviço só é usado se o método principal falhar.
+- Nos downloads do TikTok, o link do vídeo é processado por um serviço externo, para encontrar o vídeo mais rápido.
 
 ## ⚠️ Aviso de uso
 

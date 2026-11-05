@@ -15,8 +15,8 @@ android {
         applicationId = "dev.sumanth.spd"
         minSdk = 24
         targetSdk = 36
-        versionCode = 49
-        versionName = "2.8.0"
+        versionCode = 50
+        versionName = "2.9.0"
         // yt-dlp + ffmpeg are bundled per CPU type: phones only (no emulator x86) keeps the APK smaller
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")

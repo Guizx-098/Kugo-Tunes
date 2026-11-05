@@ -117,6 +117,10 @@ object SocialVideoExtractor {
      * final error says which step failed, instead of one generic message.
      */
     private fun resolve(client: okhttp3.OkHttpClient, platform: Platform, pageUrl: String): Resolved {
+        if (platform == Platform.INSTAGRAM) {
+            // The small public embed pages first, all at once: much faster than loading the full reel page
+            resolveInstagramEmbeds(client, pageUrl)?.let { return it }
+        }
         var finalUrl = pageUrl
         var lastHtml = ""
         val agents = if (platform == Platform.TIKTOK || platform == Platform.FACEBOOK) listOf(USER_AGENT, DESKTOP_USER_AGENT) else listOf(USER_AGENT)
@@ -130,16 +134,6 @@ object SocialVideoExtractor {
         }
 
         if (platform == Platform.INSTAGRAM) {
-            val code = Regex("/reel/([\\w-]+)").find(pageUrl)?.groupValues?.get(1)
-            if (code != null) {
-                val embeds = listOf("https://www.instagram.com/reel/$code/embed/captioned/", "https://www.instagram.com/reel/$code/embed/", "https://www.instagram.com/p/$code/embed/captioned/")
-                for (embed in embeds) {
-                    val page = try { fetchPage(client, embed, USER_AGENT, platform) } catch (e: LocalizedException) { throw e } catch (e: IOException) { continue }
-                    val found = parseInstagramEmbed(page.html)
-                    Log.w(TAG, "INSTAGRAM embed ${safe(embed)} html=${page.html.length}B video=${found?.videoUrl != null}")
-                    if (found?.videoUrl != null) return Resolved(found, finalUrl)
-                }
-            }
             throw LocalizedException(R.string.err_video_not_public, fallback = "Could not find a downloadable video.")
         }
 
@@ -176,6 +170,39 @@ object SocialVideoExtractor {
             )
         }
         throw LocalizedException(R.string.err_video_not_found, fallback = "Could not find a downloadable video at this link.")
+    }
+
+    /** The three public embed pages of a Reel, requested at the same time; the first one that has the video wins. */
+    private fun resolveInstagramEmbeds(client: okhttp3.OkHttpClient, pageUrl: String): Resolved? {
+        val code = Regex("/reel/([\\w-]+)").find(pageUrl)?.groupValues?.get(1) ?: return null
+        val embeds = listOf(
+            "https://www.instagram.com/reel/$code/embed/captioned/",
+            "https://www.instagram.com/reel/$code/embed/",
+            "https://www.instagram.com/p/$code/embed/captioned/"
+        )
+        val executor = java.util.concurrent.Executors.newFixedThreadPool(embeds.size)
+        val completion = java.util.concurrent.ExecutorCompletionService<Resolved?>(executor)
+        try {
+            embeds.forEach { embed ->
+                completion.submit(java.util.concurrent.Callable<Resolved?> {
+                    try {
+                        val page = fetchPage(client, embed, USER_AGENT, Platform.INSTAGRAM)
+                        val found = parseInstagramEmbed(page.html)
+                        Log.w(TAG, "INSTAGRAM embed ${safe(embed)} html=${page.html.length}B video=${found?.videoUrl != null}")
+                        if (found?.videoUrl != null) Resolved(found, pageUrl) else null
+                    } catch (e: Exception) {
+                        null
+                    }
+                })
+            }
+            repeat(embeds.size) {
+                val result = completion.take().get()
+                if (result != null) return result
+            }
+            return null
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     private data class Page(val html: String, val finalUrl: String)
